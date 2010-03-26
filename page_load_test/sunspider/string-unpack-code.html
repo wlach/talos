@@ -34,6 +34,7 @@
 <div id="console">
 </div>
 <script>
+var start = new Date();
 
 
 // This test case unpacks the compressed code for the MochiKit,
@@ -105,6 +106,8 @@ var decompressedPrototype = function(p,a,c,k,e,d){e=function(c){return(c<a?"":e(
 
 }
 
+var timeDiff = (new Date()) - start;
+window.addEventListener("load", function() { tpRecordTime(timeDiff); }, false);
 
 </script>
 
