@@ -38,7 +38,7 @@ import re
 
 DEFAULT_PORT = 20701
 
-class WinmoProcess(FFProcess):
+class RemoteProcess(FFProcess):
     testAgent = None
     rootdir = ''
     dirSlash = ''
@@ -162,6 +162,7 @@ class WinmoProcess(FFProcess):
             temp = True
 
         re_nofile = re.compile("error:.*")
+        
         data = self.testAgent.getFile(handle, localFile)
         if (temp == True):
           os.remove(localFile)
@@ -177,7 +178,8 @@ class WinmoProcess(FFProcess):
     def launchProcess(self, cmd, outputFile = "process.txt", timeout = -1):
         if (outputFile == "process.txt"):
             outputFile = self.rootdir + self.dirSlash + "process.txt"
-        self.testAgent.fireProcess(cmd + " > " + outputFile)
+            cmd += " > " + outputFile
+        self.testAgent.fireProcess(cmd)
         handle = outputFile
   
         timed_out = True
@@ -223,6 +225,24 @@ class WinmoProcess(FFProcess):
 
     def getCurrentTime(self):
         return self.testAgent.getCurrentTime()
+        
+    def getDeviceRoot(self):
+        return self.testAgent.getDeviceRoot()
 
     def addRemoteServerPref(self, profile_dir, server):
-        return self.testAgent.addRemoteServerPref(profile_dir, server)
+        """
+          edit the user.js in the profile (on the host machine) and
+          add the xpconnect priviledges for the remote server
+        """
+        user_js_filename = os.path.join(profile_dir, 'user.js')
+        user_js_file = open(user_js_filename, 'a+')
+
+        #TODO: p2 is hardcoded, how do we determine what prefs.js has hardcoded?
+        remoteCode = """
+user_pref("capability.principal.codebase.p2.granted", "UniversalPreferencesWrite UniversalXPConnect UniversalPreferencesRead");
+user_pref("capability.principal.codebase.p2.id", "http://%(server)s");
+user_pref("capability.principal.codebase.p2.subjectName", "");
+""" % { "server": server }
+        user_js_file.write(remoteCode)
+        user_js_file.close()
+
