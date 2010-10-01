@@ -195,15 +195,15 @@ function reportResults() {
         }
     }
     avgOpenTime = Math.round(avgOpenTime / (MAX_INDEX - 1));
-    dump("__start_report" + openingTimes.join('|') + "__end_report");
+    dumpLog("__start_report" + openingTimes.join('|') + "__end_report");
     var now = (new Date()).getTime();
-    dump("__startTimestamp" + now + "__endTimestamp\n");
-    dump("openingTimes="+openingTimes.slice(1)+"\n");
-    dump("avgOpenTime:" + avgOpenTime + "\n" );
-    dump("minOpenTime:" + minOpenTime + "\n" );
-    dump("maxOpenTime:" + maxOpenTime + "\n" );
-    dump("medOpenTime:" + medOpenTime + "\n" );
-    dump("__xulWinOpenTime:" + medOpenTime + "\n");
+    dumpLog("__startTimestamp" + now + "__endTimestamp\n");
+    dumpLog("openingTimes="+openingTimes.slice(1)+"\n");
+    dumpLog("avgOpenTime:" + avgOpenTime + "\n" );
+    dumpLog("minOpenTime:" + minOpenTime + "\n" );
+    dumpLog("maxOpenTime:" + maxOpenTime + "\n" );
+    dumpLog("medOpenTime:" + medOpenTime + "\n" );
+    dumpLog("__xulWinOpenTime:" + medOpenTime + "\n");
     // Close the root window, if required.
     if ( AUTOCLOSE ) {
         goQuitApplication();

@@ -39,6 +39,7 @@
 <html>
 <!-- call this with an arg, e.g. file://foo/startup-test.html?begin=12345678 -->
 <!-- In-line this to avoid compilation. -->
+<script language="Javascript" type="text/javascript" src="../scripts/MozillaFileLogger.js"></script>
 <script language="JavaScript" type="text/javascript" src="../page_load_test/quit.js"></script>
 
 <body onload="
@@ -48,7 +49,7 @@
 	document.write('\n\nStartup time = ' + startupTime + ' ms<br>');
     now = (new Date()).getTime();
     if (window.dump) {
-      dump('__start_report' + startupTime + '__end_report\n\n' + '__startTimestamp' + now + '__endTimestamp\n');
+      dumpLog('__start_report' + startupTime + '__end_report\n\n' + '__startTimestamp' + now + '__endTimestamp\n');
     }
     goQuitApplication();
     window.close();

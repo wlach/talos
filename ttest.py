@@ -108,8 +108,8 @@ class TTest(object):
 
     def initializeLibraries(self, browser_config):
         if ((browser_config['remote'] == True) and (browser_config['host'] <> '')):
-            from ffprocess_winmo import WinmoProcess
-            self._ffprocess = WinmoProcess(browser_config['host'], 
+            from ffprocess_remote import RemoteProcess
+            self._ffprocess = RemoteProcess(browser_config['host'], 
                                            browser_config['port'], 
                                            browser_config['deviceroot'])
             self._ffsetup = FFSetup(self._ffprocess)
@@ -261,6 +261,7 @@ class TTest(object):
   
                 utils.debug("command line: " + command_line)
  
+                b_log = browser_config['browser_log']
                 b_cmd = 'python bcontroller.py --command "%s"' % (command_line)
                 b_cmd += ' --child_process %s ' % (browser_config['child_process'])
                 b_cmd += ' --name %s ' % (browser_config['process'])
@@ -270,6 +271,7 @@ class TTest(object):
                     b_cmd += ' --mod "%s" ' % (test_config['url_mod'])
 
                 if (self.remote == True):
+                    b_log = browser_config['deviceroot'] + '/' + browser_config['browser_log']
                     b_cmd += ' --host "%s" ' % (browser_config['host'])
                     b_cmd += ' --port "%s" ' % (browser_config['port'])
                     b_cmd += ' --deviceRoot "%s" ' % (browser_config['deviceroot'])
@@ -295,7 +297,7 @@ class TTest(object):
                     # Sleep for [resolution] seconds
                     time.sleep(resolution)
                     total_time += resolution
-                    fileData = self._ffprocess.getFile(browser_config['browser_log'])
+                    fileData = self._ffprocess.getFile(b_log)
                     if (len(fileData) > 0):
                         utils.noisy(fileData.replace(dumpResult, ''))
                         dumpResult = fileData

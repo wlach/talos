@@ -24,6 +24,10 @@ class remotePerfConfigurator(pc.PerfConfigurator):
                 newline += part
                 if (part <> parts[-1]):
                     newline += ' '
+
+        #take care of tpan/tzoom tests
+        newline = newline.replace('webServer=', 'webServer=' + self.webServer);
+
         return newline
 
     def buildRemoteManifest(self, manifestName):
@@ -31,7 +35,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
           Take a given manifest name, convert the localhost->remoteserver, and then copy to the device
           returns the remote filename on the device so we can add it to the .config file
         """
-        remoteName = '/tests/talos/'
+        remoteName = self.deviceRoot
         fHandle = open(manifestName, 'r')
         manifestData = fHandle.read()
         fHandle.close()
@@ -41,11 +45,32 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             newHandle.write(line.replace('localhost', self.webServer) + "\n")
         newHandle.close()
 
-        remoteName += os.path.basename(manifestName)
+        remoteName += '/' + os.path.basename(manifestName) + ' '
         if self.testAgent.pushFile(manifestName + '.remote', remoteName) == None:
             raise pc.Configuration("Unable to copy remote manifest file " 
                                 + manifestName + ".remote to " + remoteName)
         return remoteName
+
+    def _getMasterIniContents(self):
+        """ Open and read the application.ini on the device under test """
+        if (self._remote == True):
+            localfilename = "remoteapp.ini"
+            
+            #we need a better OS detection method, but for now this is how we work on android
+            if (self.exePath == 'org.mozilla.fennec'):
+              remoteFile = '/data/data/' + self.exePath + '/' + self.masterIniSubpath            
+            else:
+              parts = self.exePath.split('/')
+              remoteFile = '/'.join(parts[0:-1]) + '/' + self.masterIniSubpath
+            
+            retVal = self.testAgent.getFile(remoteFile, localfilename)
+            master = open(localfilename)
+        else:
+            return pc.PerfConfigurator(self)
+            
+        data = master.read()
+        master.close()
+        return data.split('\n')
 
 
 def main(argv=None):
@@ -71,6 +96,8 @@ def main(argv=None):
     remotePort = ''
     webServer = 'localhost'
     deviceRoot = ''
+    testPrefix = ''
+    extension = ''
 
     if argv is None:
         argv = sys.argv
@@ -81,7 +108,7 @@ def main(argv=None):
                 "configFilePath=", "sampleConfig=", "title=", 
                 "branch=", "output=", "id=", "testDate=", "browserWait=",
                 "resultsServer=", "resultsLink=", "activeTests=", 
-                "noChrome", "branchName=", "fast", "symbolsPath=",
+                "noChrome", "testPrefix=", "extension=", "branchName=", "fast", "symbolsPath=",
                 "remoteDevice=", "remotePort=", "webServer=", "deviceRoot="])
         except getopt.error, msg:
             raise pc.Usage(msg)
@@ -122,6 +149,10 @@ def main(argv=None):
                 activeTests = value
             if option in ("-n", "--noChrome"):
                 noChrome = True
+            if option in ("--testPrefix",):
+                testPrefix = value
+            if option in ("--extension",):
+                extension = value
             if option in ("-r", "--remoteDevice"):
                 remoteDevice = value
             if option in ("-p", "--remotePort"):
@@ -143,8 +174,8 @@ def main(argv=None):
     #remotePort will default to 20701 and is optional.
     #webServer can be used without remoteDevice, but is required when using remoteDevice
     if (remoteDevice != '' or deviceRoot != ''):
-        if (webServer == 'localhost' or deviceRoot == '' or remoteDevice == ''):
-            print "\nERROR: When running Talos on a remote device, you need to provide a webServer, deviceRoot and optionally a remotePort"
+        if (webServer == 'localhost'  or remoteDevice == ''):
+            print "\nERROR: When running Talos on a remote device, you need to provide a webServer and optionally a remotePort"
             print pc.help_message
             return 2
 
@@ -165,6 +196,8 @@ def main(argv=None):
                                     activeTests=activeTests,
                                     noChrome=noChrome,
                                     fast=fast,
+                                    testPrefix=testPrefix,
+                                    extension=extension,
                                     symbolsPath=symbolsPath,
                                     remoteDevice=remoteDevice,
                                     remotePort=remotePort,

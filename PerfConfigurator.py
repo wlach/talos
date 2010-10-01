@@ -19,8 +19,8 @@ import re
 import time
 from datetime import datetime
 from os import path
+import os
 
-masterIniSubpath = "application.ini"
 defaultTitle = "qm-pxp01"
 
 help_message = '''
@@ -57,11 +57,13 @@ class PerfConfigurator:
     _remote = False
     port = ''
     extension = ''
+    masterIniSubpath = "application.ini"
 
     def _setupRemote(self, host, port = 20701):
         import devicemanager
         self.testAgent = devicemanager.DeviceManager(host, port)
         self._remote = True
+        self.deviceRoot = self.testAgent.getDeviceRoot()
     
     def _dumpConfiguration(self):
         """dump class configuration for convenient pickup or perusal"""
@@ -96,16 +98,8 @@ class PerfConfigurator:
         return currentDateTime.strftime("%Y%m%d_%H%M")
 
     def _getMasterIniContents(self):
-        """ Open and read the application.ini on the device under test """
-        if (self._remote == True):
-            localfilename = "remoteapp.ini"
-            parts = self.exePath.split('/')
-            remoteFile = '/'.join(parts[0:-1]) + '/' + masterIniSubpath
-            
-            self.testAgent.getFile(remoteFile, localfilename)
-            master = open(localfilename)
-        else:
-            master = open(path.join(path.dirname(self.exePath), masterIniSubpath))
+        """ Open and read the application.ini from the application directory """
+        master = open(path.join(path.dirname(self.exePath), self.masterIniSubpath))
             
         data = master.read()
         master.close()
@@ -120,7 +114,7 @@ class PerfConfigurator:
             if match:
                 return match.group(1)
         raise Configuration("BuildID not found in " 
-          + path.join(path.dirname(self.exePath), masterIniSubpath))
+          + path.join(path.dirname(self.exePath), self.masterIniSubpath))
     
     def _getTimeFromTimeStamp(self):
         if len(self.testDate) == 14: 
@@ -141,7 +135,7 @@ class PerfConfigurator:
         return time.strftime("%a, %d %b %Y %H:%M:%S GMT", buildIdTime)
 
     def convertUrlToRemote(self, line):
-        """"
+        """
           This can be filled in (preferred in a subclass) to modify 
           a url line to support a remote webserver
         """
@@ -189,7 +183,18 @@ class PerfConfigurator:
             if 'remote:' in line:
                 newline = 'remote: %s\n' % self._remote
             if 'buildid:' in line:
-                newline = 'buildid: ' + buildidString + '\n'
+                newline = 'buildid: %s\n' % buildidString
+            if 'talos.logfile:' in line:
+                parts = line.split(':')
+                if (parts[1] != None and parts[1].strip() == ''):
+                  lfile = os.path.join(os.getcwd(), 'browser_output.txt')
+                else:
+                  lfile = parts[1].strip().strip("'")
+                  
+                if self._remote == True:
+                    lfile = self.deviceRoot + '/' + lfile.split('/')[-1]
+                
+                newline = '%s: %s\n' % (parts[0], lfile)
             if 'testbranch' in line:
                 newline = 'branch: ' + self.branch
             if self._remote == True and ('init_url' in line):
@@ -286,6 +291,8 @@ class PerfConfigurator:
             self.extension = kwargs['extension']
         if 'remotePort' in kwargs:
             self.port = kwargs['remotePort']
+            if (self.port == None or self.port == '' or self.port <= 0):
+                self.port = '20701'
 
         if (self.remoteDevice <> ''):
           self._setupRemote(self.remoteDevice, self.port)
@@ -405,8 +412,8 @@ def main(argv=None):
     #remotePort will default to 20701 and is optional.
     #webServer can be used without remoteDevice, but is required when using remoteDevice
     if (remoteDevice != '' or deviceRoot != ''):
-        if (webServer == 'localhost' or deviceRoot == '' or remoteDevice == ''):
-            print "\nERROR: When running Talos on a remote device, you need to provide a webServer, deviceRoot and optionally a remotePort"
+        if (webServer == 'localhost' or remoteDevice == ''):
+            print "\nERROR: When running Talos on a remote device, you need to provide a webServer, and optionally a remotePort"
             print help_message
             return 2
 

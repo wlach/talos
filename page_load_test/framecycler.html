@@ -133,7 +133,7 @@
     var rstring = "__start_page_load_report";
 
     var r = getArrayStats(all);
-    dump(
+    dumpLog(
       "__start_report\n" + 
       "_x_x_mozilla_page_load,"+avgmed+","+r.max+","+r.min+"\n"+
       "_x_x_mozilla_page_load_details,avgmedian|"+avgmed+"|average|"+avg.toFixed(2)+"|minimum|"+r.min+"|maximum|"+r.max+"|stddev|"+r.stdd.toFixed(2)
@@ -143,7 +143,7 @@
       r = getArrayStats(timeVals[i]);
       fields = pages[i].split('/');
       //rstring += "page:" + fields[5] + ":" + r.median.toFixed(2) + "\n";
-      dump(
+      dumpLog(
         '|'+
         i+';'+
         //pages[i]+';'+
@@ -154,16 +154,16 @@
         r.max
       );
       for (var j = 0; j < timeVals[i].length; ++j) {
-        dump(
+        dumpLog(
           ';'+timeVals[i][j]
         );
       }
-      dump("\n")
+      dumpLog("\n")
     } 
-    dump("__end_report\n\n");
+    dumpLog("__end_report\n\n");
     //rstring += "__end_page_load_report";
     //alert(rstring);
-    //dump(rstring);
+    //dumpLog(rstring);
   }
 
   function showReport() {
@@ -193,7 +193,7 @@
   }
 
   function loadFail() {
-    dump("__FAILtimeout:" + frames["content"].document.location.href + "__FAIL");
+    dumpLog("__FAILtimeout:" + frames["content"].document.location.href + "__FAIL");
     if (QUIT) {
       goQuitApplication();
     }

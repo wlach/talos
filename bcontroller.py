@@ -81,14 +81,15 @@ class BrowserWaiter(threading.Thread):
 
   def run(self):
     if self.mod:
-      if (self.deviceManager.__class__.__name__ == "WinmoProcess"):
+      if (self.deviceManager.__class__.__name__ == "RemoteProcess"):
         if (self.mod == "str(int(time.time()*1000))"):
           self.command += self.deviceManager.getCurrentTime()
       else:
         self.command = self.command + eval(self.mod)
 
-    if (self.deviceManager.__class__.__name__ == "WinmoProcess"):
-      retVal = self.deviceManager.launchProcess(self.command, timeout=600)
+    if (self.deviceManager.__class__.__name__ == "RemoteProcess"):
+      remoteLog = self.deviceManager.getDeviceRoot() + '/' + self.log.split('/')[-1]
+      retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=600)
       if retVal <> None:
         self.deviceManager.getFile(retVal, self.log)
         self.returncode = 0
@@ -123,10 +124,11 @@ class BrowserController:
     self.host = host
     self.port = port
     self.root = root
+
     if (host <> ''):
-      from ffprocess_winmo import WinmoProcess
-      platform_type = 'win_'
-      ffprocess = WinmoProcess(host, port, root)
+      from ffprocess_remote import RemoteProcess
+      platform_type = 'win_' 
+      ffprocess = RemoteProcess(host, port, root)
 
     self.ffprocess = ffprocess
 
@@ -181,7 +183,8 @@ def main(argv=None):
 
    if argv is None:
         argv = sys.argv
-   opts, args = getopt.getopt(argv[1:], "c:t:n:p:l:m:h:r:o", ["command=", "timeout=", "name=", "child_process=", "log=", "mod=", "host=", "deviceRoot=", "port="])
+   opts, args = getopt.getopt(argv[1:], "c:t:n:p:l:m:h:r:o:d", ["command=", "timeout=", "name=", "child_process=", 
+                                                              "log=", "mod=", "host=", "deviceRoot=", "port="])
 
    # option processing
    for option, value in opts:

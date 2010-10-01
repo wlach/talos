@@ -40,37 +40,6 @@
   These files did not have a license
 */
 
-var ipcMode = false; // running in e10s build and need to use IPC?
-try {
-  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
-  var ipcsanity = Components.classes["@mozilla.org/preferences-service;1"]
-                    .getService(Components.interfaces.nsIPrefBranch);
-  ipcsanity.setIntPref("mochitest.ipcmode", 0);
-} catch (e) {
-  ipcMode = true;
-}
-
-function contentDispatchEvent(type, data, sync) {
-  if (typeof(data) === "undefined") {
-    data = {};
-  }
-
-  var element = document.createEvent("datacontainerevent");
-  element.initEvent("contentEvent", true, false);
-  element.setData("sync", sync);
-  element.setData("type", type);
-  element.setData("data", JSON.stringify(data));
-  document.dispatchEvent(element);
-}
-
-function contentSyncEvent(type, data) {
-  contentDispatchEvent(type, data, 1);
-}
-
-function contentAsyncEvent(type, data) {
-  contentDispatchEvent(type, data, 0);
-}
-
 function canQuitApplication()
 {
   var os = Components.classes["@mozilla.org/observer-service;1"]

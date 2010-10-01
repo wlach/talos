@@ -39,15 +39,33 @@ function ipcEvent(e) {
     var type = e.getData("type");
     var data = JSON.parse(e.getData("data"));
 
-    if (type == 'QuitApplication') {
-      removeEventListener("contentEvent", function (e) { ipcEvent(e); }, false, true);
-    }
+    switch (type) {
+    case 'LoggerInit':
+      MozillaFileLogger.init(data);
+      break;
+    case 'Logger':
+      dump("in ipcEvent, logger: " + data);
+      MozillaFileLogger.log(data);
+      break;
+    case 'LoggerClose':
+      MozillaFileLogger.close();
+      break;
+    default:
+      if (type == 'QuitApplication') {
+        removeEventListener("contentEvent", function (e) { ipcEvent(e); }, false, true);
+        MozillaFileLogger.close();
+      }
 
-    if (sync == 1) {
-      return sendSyncMessage("chromeEvent", {"type":type, "data":data});
-    } else {
-      sendAsyncMessage("chromeEvent", {"type":type, "data":data});
+      if (sync == 1) {
+        return sendSyncMessage("chromeEvent", {"type":type, "data":data});
+      } else {
+        sendAsyncMessage("chromeEvent", {"type":type, "data":data});
+      }
     }
 };
 
 addEventListener("contentEvent", function (e) { ipcEvent(e); }, false, true);
+
+var retVal = sendSyncMessage("chromeEvent", {"type":"getCharPref", "data":"talos.logfile"});
+MozillaFileLogger.init(retVal[0].value);
+

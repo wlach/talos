@@ -54,6 +54,15 @@ function messageHandler(m) {
     messageManager.removeMessageListener("chromeEvent", messageHandler);
     goQuitApplication();
     break;
+  case 'getCharPref':
+    var retVal = '';
+    try {
+      var prefs = Components.classes['@mozilla.org/preferences-service;1']
+        .getService(Components.interfaces.nsIPrefBranch2);
+      retVal = prefs.getCharPref(data);
+    } catch (ex) {} //pref does not exist, return empty string
+    return {'value':retVal};
+    break;
   default:
     break;
   }
@@ -61,6 +70,7 @@ function messageHandler(m) {
 
 function setup() {
   window.removeEventListener("load", setup, false);
+  messageManager.loadFrameScript("chrome://talos/content/MozillaFileLogger.js", true);
   messageManager.loadFrameScript("chrome://talos/content/ipc.js", true);
   messageManager.addMessageListener("chromeEvent", messageHandler);
 }
