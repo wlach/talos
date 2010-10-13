@@ -232,7 +232,7 @@ class FFSetup(object):
         os.makedirs(destpath)
         zip_extractall(zipfile.ZipFile(bundle_path), destpath)
 
-    def InitializeNewProfile(self, browser_path, process, child_process, browser_wait, extra_args, profile_dir, init_url, log):
+    def InitializeNewProfile(self, browser_path, process, child_process, browser_wait, extra_args, profile_dir, init_url, log, test_timeout):
         """Runs browser with the new profile directory, to negate any performance
             hit that could occur as a result of starting up with a new profile.  
             Also kills the "extra" browser that gets spawned the first time browser
@@ -249,6 +249,7 @@ class FFSetup(object):
         b_cmd += " --name %s" % (process)
         b_cmd += " --child_process %s" % (child_process)
         b_cmd += " --timeout %d" % (browser_wait)
+        b_cmd += " --test_timeout %d" % (int(test_timeout))
         b_cmd += " --log %s" % (log)
 
         if (self._remoteWebServer <> 'localhost'):

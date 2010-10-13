@@ -52,7 +52,6 @@ import getopt
 
 import stat
 
-
 if platform.system() == "Linux":
     platform_type = 'linux_'
     ffprocess = LinuxProcess()
@@ -69,12 +68,13 @@ elif platform.system() == "Darwin":
 
 class BrowserWaiter(threading.Thread):
 
-  def __init__(self, command, log, mod, deviceManager = None):
+  def __init__(self, command, log, timeout, mod, deviceManager = None):
      self.command = command
      self.log = log
      self.mod = mod
      self.endTime = -1
      self.returncode = -1
+     self.timeout = timeout
      self.deviceManager = deviceManager
      threading.Thread.__init__(self)
      self.start()
@@ -89,7 +89,7 @@ class BrowserWaiter(threading.Thread):
 
     if (self.deviceManager.__class__.__name__ == "RemoteProcess"):
       remoteLog = self.deviceManager.getDeviceRoot() + '/' + self.log.split('/')[-1]
-      retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=600)
+      retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=self.timeout)
       if retVal <> None:
         self.deviceManager.getFile(retVal, self.log)
         self.returncode = 0
@@ -112,7 +112,7 @@ class BrowserWaiter(threading.Thread):
 class BrowserController:
 
   def __init__(self, command, mod, name, child_process, 
-               timeout, log, host='', port=20701, root=''):
+               timeout, log,  test_timeout, host='', port=20701, root=''):
     global ffprocess
     self.command = command
     self.mod = mod
@@ -120,7 +120,8 @@ class BrowserController:
     self.child_process = child_process
     self.browser_wait = timeout
     self.log = log
-    self.timeout = 1200 #no output from the browser in 20 minutes = failure
+    self.timeout=test_timeout
+
     self.host = host
     self.port = port
     self.root = root
@@ -133,7 +134,7 @@ class BrowserController:
     self.ffprocess = ffprocess
 
   def run(self):
-    self.bwaiter = BrowserWaiter(self.command, self.log, self.mod, self.ffprocess)
+    self.bwaiter = BrowserWaiter(self.command, self.log, self.timeout, self.mod, self.ffprocess)
     noise = 0
     prev_size = 0
     while not self.bwaiter.hasTime():
@@ -180,11 +181,12 @@ def main(argv=None):
    host = ""
    deviceRoot = ""
    port = 20701
+   test_timeout = 1200 #no output from the browser in 20 minutes = failure
 
    if argv is None:
         argv = sys.argv
    opts, args = getopt.getopt(argv[1:], "c:t:n:p:l:m:h:r:o:d", ["command=", "timeout=", "name=", "child_process=", 
-                                                              "log=", "mod=", "host=", "deviceRoot=", "port="])
+                                                              "log=", "mod=", "host=", "deviceRoot=", "port=", "test_timeout="])
 
    # option processing
    for option, value in opts:
@@ -192,6 +194,8 @@ def main(argv=None):
        command = value
      if option in ("-t", "--timeout"):
        timeout = int(value)
+     if option in ("--test_timeout",):
+       test_timeout = int(value)
      if option in ("-n", "--name"):
        name = value
      if option in ("-p", "--child_process"):
@@ -208,7 +212,7 @@ def main(argv=None):
        port = value
 
    if command and timeout and log:
-     bcontroller = BrowserController(command, mod, name, child_process, timeout, log, host, port, deviceRoot)
+     bcontroller = BrowserController(command, mod, name, child_process, timeout, log, test_timeout, host, port, deviceRoot)
      bcontroller.run()
    else:
      print "\nFAIL: no command\n"

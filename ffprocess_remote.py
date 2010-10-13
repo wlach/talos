@@ -199,7 +199,7 @@ class RemoteProcess(FFProcess):
   
     def poll(self, process):
         try:
-            if (not self.testAgent.process.isAlive()):
+            if (not self.testAgent.poll(None)):
                 return None
             return 1
         except:

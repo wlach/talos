@@ -98,6 +98,7 @@ def main(argv=None):
     deviceRoot = ''
     testPrefix = ''
     extension = ''
+    test_timeout = ''
 
     if argv is None:
         argv = sys.argv
@@ -109,7 +110,7 @@ def main(argv=None):
                 "branch=", "output=", "id=", "testDate=", "browserWait=",
                 "resultsServer=", "resultsLink=", "activeTests=", 
                 "noChrome", "testPrefix=", "extension=", "branchName=", "fast", "symbolsPath=",
-                "remoteDevice=", "remotePort=", "webServer=", "deviceRoot="])
+                "remoteDevice=", "remotePort=", "webServer=", "deviceRoot=", "testTimeout="])
         except getopt.error, msg:
             raise pc.Usage(msg)
         
@@ -165,6 +166,8 @@ def main(argv=None):
                 fast = True
             if option in ("--symbolsPath",):
                 symbolsPath = value
+            if option in ("--testTimeout",):
+                test_timeout = value
         
     except pc.Usage, err:
         print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
@@ -202,7 +205,8 @@ def main(argv=None):
                                     remoteDevice=remoteDevice,
                                     remotePort=remotePort,
                                     webServer=webServer,
-                                    deviceRoot=deviceRoot)
+                                    deviceRoot=deviceRoot,
+                                    test_timeout=test_timeout)
     try:
         configurator.writeConfigFile()
     except pc.Configuration, err:

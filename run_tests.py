@@ -427,6 +427,10 @@ def test_file(filename, to_screen):
       browser_config['remote'] = yaml_config['remote']
   else:
       browser_config['remote'] = False
+  if 'test_timeout' in yaml_config and yaml_config['test_timeout'] != None and int(yaml_config['test_timeout']) > 0:
+      browser_config['test_timeout'] = yaml_config['test_timeout']
+  else:
+      browser_config['test_timeout'] = 1200
 
   #normalize paths to work accross platforms
   dm = None

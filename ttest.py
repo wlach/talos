@@ -131,7 +131,8 @@ class TTest(object):
                                                     browser_config['extra_args'], 
                                                     profile_dir, 
                                                     browser_config['init_url'],
-                                                    browser_config['browser_log'])):
+                                                    browser_config['browser_log'],
+                                                    browser_config['test_timeout'])):
             raise talosError("failed to initialize browser")
         time.sleep(browser_config['browser_wait'])
         if self._ffprocess.checkAllProcesses(browser_config['process'], browser_config['child_process']):
@@ -266,6 +267,7 @@ class TTest(object):
                 b_cmd += ' --child_process %s ' % (browser_config['child_process'])
                 b_cmd += ' --name %s ' % (browser_config['process'])
                 b_cmd += ' --timeout %d ' % (browser_config['browser_wait'])
+                b_cmd += ' --test_timeout %d ' % (int(browser_config['test_timeout']))
                 b_cmd += ' --log %s ' % (browser_config['browser_log'])
                 if 'url_mod' in test_config:
                     b_cmd += ' --mod "%s" ' % (test_config['url_mod'])

@@ -387,6 +387,7 @@ class DeviceManager:
     time.sleep(30)
 
     self.process = self.processExist(appname)
+    self.appname = appname
     if (self.debug >= 4): print "got pid: " + str(self.process) + " for process: " + str(appname)
 
   def launchProcess(self, cmd, outputFile = "process.txt", cwd = ''):
@@ -406,7 +407,7 @@ class DeviceManager:
       total_time = 0
       while total_time < timeout:
         time.sleep(interval)
-        if (not self.poll(process)):
+        if (self.poll(process) == None):
           timed_out = False
           break
         total_time += interval
@@ -419,7 +420,8 @@ class DeviceManager:
 
   def poll(self, process):
     try:
-      if (self.processExist(process) == None):
+      exists = self.processExist(self.appname)
+      if (exists == None or exists == ''):
         return None
       return 1
     except:

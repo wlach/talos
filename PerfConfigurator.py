@@ -152,6 +152,8 @@ class PerfConfigurator:
         testMode = False
         for line in config:
             newline = line
+            if 'test_timeout:' in line:
+                newline = 'test_timeout: ' + self.test_timeout + '\n'
             if 'browser_path:' in line:
                 newline = 'browser_path: ' + self.exePath + '\n'
             if 'title:' in line:
@@ -245,6 +247,8 @@ class PerfConfigurator:
             self._dumpConfiguration()
     
     def __init__(self, **kwargs):
+        if 'test_timeout' in kwargs:
+            self.test_timeout = kwargs['test_timeout']
         if 'title' in kwargs:
             self.title = kwargs['title']
         if 'branch' in kwargs:
@@ -336,6 +340,7 @@ def main(argv=None):
     deviceRoot = ''
     testPrefix = ''
     extension = ''
+    test_timeout = ''
 
     if argv is None:
         argv = sys.argv
@@ -347,7 +352,7 @@ def main(argv=None):
                 "branch=", "output=", "id=", "testDate=", "browserWait=",
                 "resultsServer=", "resultsLink=", "activeTests=", 
                 "noChrome", "testPrefix=", "extension=", "branchName=", "fast", "symbolsPath=",
-                "remoteDevice=", "remotePort=", "webServer=", "deviceRoot="])
+                "remoteDevice=", "remotePort=", "webServer=", "deviceRoot=", "testTimeout="])
         except getopt.error, msg:
             raise Usage(msg)
         
@@ -403,6 +408,8 @@ def main(argv=None):
                 fast = True
             if option in ("--symbolsPath",):
                 symbolsPath = value
+            if option in ("--testTimeout",):
+                test_timeout = value
         
     except Usage, err:
         print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
@@ -440,7 +447,8 @@ def main(argv=None):
                                     remoteDevice=remoteDevice,
                                     remotePort=remotePort,
                                     webServer=webServer,
-                                    deviceRoot=deviceRoot)
+                                    deviceRoot=deviceRoot,
+                                    test_timeout=test_timeout)
     try:
         configurator.writeConfigFile()
     except Configuration, err:
