@@ -36,10 +36,10 @@ class remotePerfConfigurator(pc.PerfConfigurator):
         if 'remote:' in line:
             newline = 'remote: %s\n' % self._remote
         if 'init_url' in line:
-            newline = self.convertUrlToRemote(line)
+            newline = self.convertUrlToRemote(newline)
         if testMode:
             if ('url' in line) and ('url_mod' not in line):
-                newline = self.convertUrlToRemote(line)
+                newline = self.convertUrlToRemote(newline)
         if 'talos.logfile:' in line:
             parts = line.split(':')
             if (parts[1] != None and parts[1].strip() == ''):

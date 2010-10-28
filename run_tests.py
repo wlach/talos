@@ -482,10 +482,14 @@ def test_file(filename, to_screen):
   if (results_server != '') and (results_link != ''):
     #send results to the graph server
     try:
-      utils.stamped_msg("Sending results", "Started")
-      links = send_to_graph(results_server, results_link, title, date, browser_config, results)
-      results_from_graph(links, results_server)
-      utils.stamped_msg("Completed sending results", "Stopped")
+      if (results_server is not None and 
+          results_server is not '' and 
+          results_link is not None and 
+          results_link is not ''):
+        utils.stamped_msg("Sending results", "Started")
+        links = send_to_graph(results_server, results_link, title, date, browser_config, results)
+        results_from_graph(links, results_server)
+        utils.stamped_msg("Completed sending results", "Stopped")
     except talosError, e:
       utils.stamped_msg("Failed sending results", "Stopped")
       print 'FAIL: ' + e.msg.replace('\n', '\nRETURN:')

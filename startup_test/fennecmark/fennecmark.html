@@ -16,7 +16,9 @@
           test = fields[1];
           break;
         case 'webServer':
-          webServer = fields[1].replace("%2f", "/").replace("%3c", ":");
+          if (fields[1] != null && fields[1] != '') {
+            webServer = fields[1].replace("%2f", "/").replace("%3c", ":");
+          }
           break;
         }
       }

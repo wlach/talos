@@ -35,6 +35,7 @@ import os
 import time
 import tempfile
 import re
+import shutil
 
 DEFAULT_PORT = 20701
 
@@ -158,14 +159,15 @@ class RemoteProcess(FFProcess):
             if (os.path.exists(handle)):
                 #TODO
                 return ""
-            localFile = os.path.join(tempfile.mkdtemp(), "temp.txt")
+            tempdir = tempfile.mkdtemp()
+            localFile = os.path.join(tempdir, "temp.txt")
             temp = True
 
         re_nofile = re.compile("error:.*")
         
         data = self.testAgent.getFile(handle, localFile)
         if (temp == True):
-          os.remove(localFile)
+          shutil.rmtree(tempdir)
         if (re_nofile.match(data)):
             fileData = ''
             if (os.path.isfile(handle)):

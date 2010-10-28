@@ -87,6 +87,8 @@ class PerfConfigurator:
             newline = 'test_timeout: ' + str(self.test_timeout) + '\n'
         if 'browser_path:' in line:
             newline = 'browser_path: ' + self.exePath + '\n'
+        if 'browser_log:' in line:
+            newline = 'browser_log: ' + self.logFile + '\n'
         if 'title:' in line:
             newline = 'title: ' + self.title + '\n'
             if self.testDate:
@@ -113,7 +115,8 @@ class PerfConfigurator:
                 lfile = os.path.join(os.getcwd(), 'browser_output.txt')
             else:
                 lfile = parts[1].strip().strip("'")
-                  
+                lfile = os.path.abspath(lfile)
+
             newline = '%s: %s\n' % (parts[0], lfile)
         if 'testbranch' in line:
             newline = 'branch: ' + self.branch
@@ -296,6 +299,11 @@ class TalosOptions(optparse.OptionParser):
                         action = "store", type="int", dest = "test_timeout",
                         help = "Time to wait for the browser to output to the log file")
         defaults["test_timeout"] = 1200
+
+        self.add_option("--logFile",
+                        action = "store", dest = "logFile",
+                        help = "Local logfile to store the output from the browser in")
+        defaults["logFile"] = "browser_output.txt"
 
         self.set_defaults(**defaults)
 
