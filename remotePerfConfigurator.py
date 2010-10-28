@@ -1,9 +1,54 @@
 import PerfConfigurator as pc
-import os, sys, getopt
+import os, sys
+import optparse
 
 class remotePerfConfigurator(pc.PerfConfigurator):
-    def __init__(self, **kwargs):
-        pc.PerfConfigurator.__init__(self, **kwargs)
+    def __init__(self, options):
+        self.__dict__.update(options.__dict__)
+        self._remote = False
+        if (self.remoteDevice <> ''):
+            self._setupRemote()
+            options.deviceRoot = self.deviceRoot
+
+        #this depends on buildID which requires querying the device
+        pc.PerfConfigurator.__init__(self, options)
+        pc.PerfConfigurator.attributes += ['remoteDevice', 'remotePort', 'webServer', 'deviceRoot']
+
+    def _setupRemote(self):
+        import devicemanager
+        self.testAgent = devicemanager.DeviceManager(self.remoteDevice, self.remotePort)
+        self.deviceRoot = self.testAgent.getDeviceRoot()
+        self._remote = True
+
+    def _dumpConfiguration(self):
+        pc.PerfConfigurator._dumpConfiguration(self)
+
+    def convertLine(self, line, testMode, printMe):
+        printMe, newline = pc.PerfConfigurator.convertLine(self, line, testMode, printMe)
+        if 'deviceip:' in line:
+           newline = 'deviceip: %s\n' % self.remoteDevice
+        if 'webserver:' in line:
+           newline = 'webserver: %s\n' % self.webServer
+        if 'deviceroot:' in line:
+            newline = 'deviceroot: %s\n' % self.deviceRoot
+        if 'deviceport:' in line:
+            newline = 'deviceport: %s\n' % self.remotePort
+        if 'remote:' in line:
+            newline = 'remote: %s\n' % self._remote
+        if 'init_url' in line:
+            newline = self.convertUrlToRemote(line)
+        if testMode:
+            if ('url' in line) and ('url_mod' not in line):
+                newline = self.convertUrlToRemote(line)
+        if 'talos.logfile:' in line:
+            parts = line.split(':')
+            if (parts[1] != None and parts[1].strip() == ''):
+                lfile = os.path.join(os.getcwd(), 'browser_output.txt')
+            else:
+                lfile = parts[1].strip().strip("'")
+            lfile = self.deviceRoot + '/' + lfile.split('/')[-1]
+            newline = '%s: %s\n' % (parts[0], lfile)
+        return printMe, newline
 
     def convertUrlToRemote(self, line):
         """
@@ -11,6 +56,9 @@ class remotePerfConfigurator(pc.PerfConfigurator):
           In addition if there is a .manifest file specified, covert 
           and copy that file to the remote device.
         """
+        if self._remote == False:
+            return line
+
         parts = line.split(' ')
         newline = ''
         for part in parts:
@@ -27,7 +75,6 @@ class remotePerfConfigurator(pc.PerfConfigurator):
 
         #take care of tpan/tzoom tests
         newline = newline.replace('webServer=', 'webServer=' + self.webServer);
-
         return newline
 
     def buildRemoteManifest(self, manifestName):
@@ -66,147 +113,57 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             retVal = self.testAgent.getFile(remoteFile, localfilename)
             master = open(localfilename)
         else:
-            return pc.PerfConfigurator(self)
+            return pc.PerfConfigurator._getMasterIniContents(self)
             
         data = master.read()
         master.close()
         return data.split('\n')
 
+class remoteTalosOptions(pc.TalosOptions):
+
+    def __init__(self, **kwargs):
+        defaults = {}
+        pc.TalosOptions.__init__(self)
+
+        self.add_option("-r", "--remoteDevice", action="store",
+                    type = "string", dest = "remoteDevice",
+                    help = "Device IP of the SUTAgent")
+        defaults["remoteDevice"] = ''
+
+        self.add_option("-p", "--remotePort", action="store",
+                    type="int", dest = "remotePort",
+                    help = "port the SUTAgent uses (defaults to 20701")
+        defaults["remotePort"] = 20701
+
+        self.add_option("--webServer", action="store",
+                    type = "string", dest = "webServer",
+                    help = "IP address of the webserver hosting the talos files")
+        defaults["webServer"] = ''
+
+        self.add_option("--deviceRoot", action="store",
+                    type = "string", dest = "deviceRoot",
+                    help = "path on the device that will hold files and the profile")
+        defaults["deviceRoot"] = ''
+        self.set_defaults(**defaults)
+
+    def verifyOptions(self, options):
+        #webServer can be used without remoteDevice, but is required when using remoteDevice
+        if (options.remoteDevice != '' or options.deviceRoot != ''):
+            if (options.webServer == 'localhost'  or options.remoteDevice == ''):
+                raise AssertionError("ERROR: When running Talos on a remote device, you need to provide a webServer and optionally a remotePort")
+        return options
 
 def main(argv=None):
-    exePath = ""
-    configPath = ""
-    sampleConfig = "sample.config"
-    output = ""
-    title = "mobile-01"
-    branch = ""
-    branchName = ""
-    testDate = ""
-    browserWait = "5"
-    verbose = False
-    buildid = ""
-    useId = False
-    resultsServer = ''
-    resultsLink = ''
-    activeTests = ''
-    noChrome = False
-    fast = False
-    symbolsPath = None
-    remoteDevice = ''
-    remotePort = ''
-    webServer = 'localhost'
-    deviceRoot = ''
-    testPrefix = ''
-    extension = ''
-    test_timeout = ''
+    parser = remoteTalosOptions()
+    options, args = parser.parse_args()
 
-    if argv is None:
-        argv = sys.argv
     try:
-        try:
-            opts, args = getopt.getopt(argv[1:], "hvue:c:t:b:o:i:d:s:l:a:n:r:p:w", 
-                ["help", "verbose", "useId", "executablePath=", 
-                "configFilePath=", "sampleConfig=", "title=", 
-                "branch=", "output=", "id=", "testDate=", "browserWait=",
-                "resultsServer=", "resultsLink=", "activeTests=", 
-                "noChrome", "testPrefix=", "extension=", "branchName=", "fast", "symbolsPath=",
-                "remoteDevice=", "remotePort=", "webServer=", "deviceRoot=", "testTimeout="])
-        except getopt.error, msg:
-            raise pc.Usage(msg)
-        
-        # option processing
-        for option, value in opts:
-            if option in ("-v", "--verbose"):
-                verbose = True
-            if option in ("-h", "--help"):
-                raise Usage(help_message)
-            if option in ("-e", "--executablePath"):
-                exePath = value
-            if option in ("-c", "--configFilePath"):
-                configPath = value
-            if option in ("-f", "--sampleConfig"):
-                sampleConfig = value
-            if option in ("-t", "--title"):
-                title = value
-            if option in ("-b", "--branch"):
-                branch = value
-            if option in ("--branchName"):
-                branchName = value
-            if option in ("-o", "--output"):
-                output = value
-            if option in ("-i", "--id"):
-                buildid = value
-            if option in ("-d", "--testDate"):
-                testDate = value
-            if option in ("-w", "--browserWait"):
-                browserWait = value
-            if option in ("-u", "--useId"):
-                useId = True
-            if option in ("-s", "--resultsServer"):
-                resultsServer = value
-            if option in ("-l", "--resultsLink"):
-                resultsLink = value
-            if option in ("-a", "--activeTests"):
-                activeTests = value
-            if option in ("-n", "--noChrome"):
-                noChrome = True
-            if option in ("--testPrefix",):
-                testPrefix = value
-            if option in ("--extension",):
-                extension = value
-            if option in ("-r", "--remoteDevice"):
-                remoteDevice = value
-            if option in ("-p", "--remotePort"):
-                remotePort = value
-            if option in ("-w", "--webServer"):
-                webServer = value
-            if option in ("--deviceRoot",):
-                deviceRoot = value
-            if option in ("--fast",):
-                fast = True
-            if option in ("--symbolsPath",):
-                symbolsPath = value
-            if option in ("--testTimeout",):
-                test_timeout = value
-        
-    except pc.Usage, err:
-        print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
-        print >> sys.stderr, "\t for help use --help"
-        return 2
+      options = parser.verifyOptions(options)
+    except err:
+      print err.msg
+      return 2
 
-    #remotePort will default to 20701 and is optional.
-    #webServer can be used without remoteDevice, but is required when using remoteDevice
-    if (remoteDevice != '' or deviceRoot != ''):
-        if (webServer == 'localhost'  or remoteDevice == ''):
-            print "\nERROR: When running Talos on a remote device, you need to provide a webServer and optionally a remotePort"
-            print pc.help_message
-            return 2
-
-    configurator = remotePerfConfigurator(title=title,
-                                    executablePath=exePath,
-                                    configFilePath=configPath,
-                                    sampleConfig=sampleConfig,
-                                    buildid=buildid,
-                                    branch=branch,
-                                    branchName=branchName,
-                                    verbose=verbose,
-                                    testDate=testDate,
-                                    browserWait=browserWait,
-                                    outputName=output,
-                                    useId=useId,
-                                    resultsServer=resultsServer,
-                                    resultsLink=resultsLink,
-                                    activeTests=activeTests,
-                                    noChrome=noChrome,
-                                    fast=fast,
-                                    testPrefix=testPrefix,
-                                    extension=extension,
-                                    symbolsPath=symbolsPath,
-                                    remoteDevice=remoteDevice,
-                                    remotePort=remotePort,
-                                    webServer=webServer,
-                                    deviceRoot=deviceRoot,
-                                    test_timeout=test_timeout)
+    configurator = remotePerfConfigurator(options)
     try:
         configurator.writeConfigFile()
     except pc.Configuration, err:

@@ -14,83 +14,28 @@ Modified by Benjamin Smedberg on 2009-02-27 - added option for symbols path
 """
 
 import sys
-import getopt
 import re
 import time
 from datetime import datetime
 from os import path
 import os
+import optparse
 
 defaultTitle = "qm-pxp01"
 
-help_message = '''
-This is the buildbot performance runner's YAML configurator.bean
-
-USAGE: python PerfConfigurator.py --title title --executablePath path --configFilePath cpath --buildid id --branch branch --testDate date --resultsServer server --resultsLink link --activeTests testlist --branchName branchFullName --fast --symbolsPath path --sampleConfig cfile --browserWait seconds --remoteDevice ip_of_device --remotePort port_on_device --webServer webserver_ipaddr --deviceRoot rootdir_on_device --testPrefix prefix --extension addon
-
-example testlist: tp:tsspider:tdhtml:twinopen
-'''
-
 class PerfConfigurator:
-    exePath = ""
-    configPath = "."
-    sampleConfig = "sample.config"
-    outputName = ""
-    title = ""
-    branch = ""
-    branchName = ""
-    buildid = ""
-    currentDate = ""
-    browserWait = "5"
-    verbose = False
-    testDate = ""
-    useId = False
-    resultsServer = ''
-    resultsLink = ''
-    activeTests = ''
-    noChrome = False
-    fast = False
-    testPrefix = ''
-    remoteDevice = ''
-    webServer = ''
-    deviceRoot = ''
-    _remote = False
-    port = ''
-    extension = ''
+    attributes = ['exePath', 'configPath', 'sampleConfig', 'outputName', 'title',
+                  'branch', 'branchName', 'buildid', 'currentDate', 'browserWait',
+                  'verbose', 'testDate', 'useId', 'resultsServer', 'resultsLink',
+                  'activeTests', 'noChrome', 'fast', 'testPrefix', 'extension',
+                  'masterIniSubpath', 'test_timeout', 'symbolsPath'];
     masterIniSubpath = "application.ini"
 
-    def _setupRemote(self, host, port = 20701):
-        import devicemanager
-        self.testAgent = devicemanager.DeviceManager(host, port)
-        self._remote = True
-        self.deviceRoot = self.testAgent.getDeviceRoot()
-    
     def _dumpConfiguration(self):
         """dump class configuration for convenient pickup or perusal"""
         print "Writing configuration:"
-        print " - title = " + self.title
-        print " - executablePath = " + self.exePath
-        print " - configPath = " + self.configPath
-        print " - sampleConfig = " + self.sampleConfig
-        print " - outputName = " + self.outputName
-        print " - branch = " + self.branch
-        print " - branchName = " + self.branchName
-        print " - buildid = " + self.buildid
-        print " - currentDate = " + self.currentDate
-        print " - browserWait = " + self.browserWait
-        print " - testDate = " + self.testDate
-        print " - resultsServer = " + self.resultsServer
-        print " - resultsLink = " + self.resultsLink
-        print " - activeTests = " + self.activeTests
-        print " - extension = " + self.extension
-        print " - testPrefix = " + self.testPrefix
-        if (self._remote == True):
-            print " - deviceIP = " + self.remoteDevice
-            print " - devicePort = " + self.port
-            print " - webServer = " + self.webServer
-            print " - deviceRoot = " + self.deviceRoot
-        if self.symbolsPath:
-            print " - symbolsPath = " + self.symbolsPath
+        for i in self.attributes:
+            print " - %s = %s" % (i, getattr(self, i))
     
     def _getCurrentDateString(self):
         """collect a date string to be used in naming the created config file"""
@@ -134,107 +79,85 @@ class PerfConfigurator:
           buildIdTime = time.strptime(self.buildid, "%Y%m%d%H")
         return time.strftime("%a, %d %b %Y %H:%M:%S GMT", buildIdTime)
 
-    def convertUrlToRemote(self, line):
-        """
-          This can be filled in (preferred in a subclass) to modify 
-          a url line to support a remote webserver
-        """
-        return line
+    def convertLine(self, line, testMode, printMe):
+        buildidString = "'" + str(self.buildid) + "'"
+        activeList = self.activeTests.split(':')
+        newline = line
+        if 'test_timeout:' in line:
+            newline = 'test_timeout: ' + str(self.test_timeout) + '\n'
+        if 'browser_path:' in line:
+            newline = 'browser_path: ' + self.exePath + '\n'
+        if 'title:' in line:
+            newline = 'title: ' + self.title + '\n'
+            if self.testDate:
+                newline += '\n'
+                newline += 'testdate: "%s"\n' % self._getTimeFromTimeStamp()
+            elif self.useId:
+                newline += '\n'
+                newline += 'testdate: "%s"\n' % self._getTimeFromBuildId()
+            if self.branchName: 
+                newline += '\n'
+                newline += 'branch_name: %s\n' % self.branchName
+            if self.noChrome:
+                newline += '\n'
+                newline += "test_name_extension: _nochrome\n"
+            if self.symbolsPath:
+                newline += '\nsymbols_path: %s\n' % self.symbolsPath
+        if self.extension and ('extensions : {}' in line):
+            newline = 'extensions: ' + '\n- ' + self.extension
+        if 'buildid:' in line:
+            newline = 'buildid: %s\n' % buildidString
+        if 'talos.logfile:' in line:
+            parts = line.split(':')
+            if (parts[1] != None and parts[1].strip() == ''):
+                lfile = os.path.join(os.getcwd(), 'browser_output.txt')
+            else:
+                lfile = parts[1].strip().strip("'")
+                  
+            newline = '%s: %s\n' % (parts[0], lfile)
+        if 'testbranch' in line:
+            newline = 'branch: ' + self.branch
+
+        #only change the results_server if the user has provided one
+        if self.resultsServer and ('results_server' in line):
+            newline = 'results_server: ' + self.resultsServer + '\n'
+        #only change the results_link if the user has provided one
+        if self.resultsLink and ('results_link' in line):
+            newline = 'results_link: ' + self.resultsLink + '\n'
+        #only change the browser_wait if the user has provided one
+        if self.browserWait and ('browser_wait' in line):
+            newline = 'browser_wait: ' + str(self.browserWait) + '\n'
+        if testMode:
+            #only do this if the user has provided a list of tests to turn on/off
+            # otherwise, all tests are considered to be active
+            if self.activeTests:
+                if line.startswith('- name'): 
+                    #found the start of an individual test description
+                    printMe = False
+                for test in activeList: 
+                    reTestMatch = re.compile('^-\s*name\s*:\s*' + test + '\s*$')
+                    #determine if this is a test we are going to run
+                    match = re.match(reTestMatch, line)
+                    if match:
+                        printMe = True
+                        if (test == 'tp') and self.fast: #only affects the tp test name
+                            newline = newline.replace('tp', 'tp_fast')
+                        if self.testPrefix:
+                            newline = newline.replace(test, self.testPrefix + '_' + test)
+            if self.noChrome: 
+                #if noChrome is True remove --tpchrome option 
+                newline = line.replace('-tpchrome ','')
+        return printMe, newline
 
     def writeConfigFile(self):
         configFile = open(path.join(self.configPath, self.sampleConfig))
         destination = open(self.outputName, "w")
         config = configFile.readlines()
         configFile.close()
-        buildidString = "'" + str(self.buildid) + "'"
-        activeList = self.activeTests.split(':')
         printMe = True
         testMode = False
         for line in config:
-            newline = line
-            if 'test_timeout:' in line:
-                newline = 'test_timeout: ' + self.test_timeout + '\n'
-            if 'browser_path:' in line:
-                newline = 'browser_path: ' + self.exePath + '\n'
-            if 'title:' in line:
-                newline = 'title: ' + self.title + '\n'
-                if self.testDate:
-                    newline += '\n'
-                    newline += 'testdate: "%s"\n' % self._getTimeFromTimeStamp()
-                elif self.useId:
-                    newline += '\n'
-                    newline += 'testdate: "%s"\n' % self._getTimeFromBuildId()
-                if self.branchName: 
-                    newline += '\n'
-                    newline += 'branch_name: %s\n' % self.branchName
-                if self.noChrome:
-                    newline += '\n'
-                    newline += "test_name_extension: _nochrome\n"
-                if self.symbolsPath:
-                    newline += '\nsymbols_path: %s\n' % self.symbolsPath
-            if 'deviceip:' in line:
-                newline = 'deviceip: %s\n' % self.remoteDevice
-            if 'webserver:' in line:
-                newline = 'webserver: %s\n' % self.webServer
-            if 'deviceroot:' in line:
-                newline = 'deviceroot: %s\n' % self.deviceRoot
-            if 'deviceport:' in line:
-                newline = 'deviceport: %s\n' % self.port
-            if self.extension and ('extensions : {}' in line):
-                newline = 'extensions: ' + '\n- ' + self.extension
-            if 'remote:' in line:
-                newline = 'remote: %s\n' % self._remote
-            if 'buildid:' in line:
-                newline = 'buildid: %s\n' % buildidString
-            if 'talos.logfile:' in line:
-                parts = line.split(':')
-                if (parts[1] != None and parts[1].strip() == ''):
-                  lfile = os.path.join(os.getcwd(), 'browser_output.txt')
-                else:
-                  lfile = parts[1].strip().strip("'")
-                  
-                if self._remote == True:
-                    lfile = self.deviceRoot + '/' + lfile.split('/')[-1]
-                
-                newline = '%s: %s\n' % (parts[0], lfile)
-            if 'testbranch' in line:
-                newline = 'branch: ' + self.branch
-            if self._remote == True and ('init_url' in line):
-                newline = self.convertUrlToRemote(line)
-
-            #only change the results_server if the user has provided one
-            if self.resultsServer and ('results_server' in line):
-                newline = 'results_server: ' + self.resultsServer + '\n'
-            #only change the results_link if the user has provided one
-            if self.resultsLink and ('results_link' in line):
-                newline = 'results_link: ' + self.resultsLink + '\n'
-            #only change the browser_wait if the user has provided one
-            if self.browserWait and ('browser_wait' in line):
-                newline = 'browser_wait: ' + self.browserWait + '\n'
-            if testMode:
-                #only do this if the user has provided a list of tests to turn on/off
-                # otherwise, all tests are considered to be active
- 
-                if ('url' in line) and ('url_mod' not in line) and (self._remote == True):
-                    line = self.convertUrlToRemote(line)
-
-                if self.activeTests:
-                    if line.startswith('- name'): 
-                        #found the start of an individual test description
-                        printMe = False
-                    for test in activeList: 
-                        reTestMatch = re.compile('^-\s*name\s*:\s*' + test + '\s*$')
-                        #determine if this is a test we are going to run
-                        match = re.match(reTestMatch, line)
-                        if match:
-                            printMe = True
-                            if (test == 'tp') and self.fast: #only affects the tp test name
-                                newline = newline.replace('tp', 'tp_fast')
-                            if self.testPrefix:
-                                newline = newline.replace(test, self.testPrefix + '_' + test)
-                if self.noChrome: 
-                    #if noChrome is True remove --tpchrome option 
-                    newline = line.replace('-tpchrome ','')
+            printMe, newline = self.convertLine(line, testMode, printMe)
             if printMe:
                 destination.write(newline)
             if line.startswith('tests :'): 
@@ -246,60 +169,8 @@ class PerfConfigurator:
         if self.verbose:
             self._dumpConfiguration()
     
-    def __init__(self, **kwargs):
-        if 'test_timeout' in kwargs:
-            self.test_timeout = kwargs['test_timeout']
-        if 'title' in kwargs:
-            self.title = kwargs['title']
-        if 'branch' in kwargs:
-            self.branch = kwargs['branch']
-        if 'branchName' in kwargs:
-            self.branchName = kwargs['branchName']
-        if 'executablePath' in kwargs:
-            self.exePath = kwargs['executablePath']
-        if 'configFilePath' in kwargs:
-            self.configPath = kwargs['configFilePath']
-        if 'sampleConfig' in kwargs:
-            self.sampleConfig = kwargs['sampleConfig']
-        if 'outputName' in kwargs:
-            self.outputName = kwargs['outputName']
-        if 'buildid' in kwargs:
-            self.buildid = kwargs['buildid']
-        if 'verbose' in kwargs:
-            self.verbose = kwargs['verbose']
-        if 'testDate' in kwargs:
-            self.testDate = kwargs['testDate']
-        if 'browserWait' in kwargs:
-            self.browserWait = kwargs['browserWait']
-        if 'resultsServer' in kwargs:
-            self.resultsServer = kwargs['resultsServer']
-        if 'resultsLink' in kwargs:
-            self.resultsLink = kwargs['resultsLink']
-        if 'activeTests' in kwargs:
-            self.activeTests = kwargs['activeTests']
-        if 'noChrome' in kwargs:
-            self.noChrome = kwargs['noChrome']
-        if 'fast' in kwargs:
-            self.fast = kwargs['fast']
-        if 'symbolsPath' in kwargs:
-            self.symbolsPath = kwargs['symbolsPath']
-        if 'remoteDevice' in kwargs:
-            self.remoteDevice = kwargs['remoteDevice']
-        if 'webServer' in kwargs:
-            self.webServer = kwargs['webServer']
-        if 'deviceRoot' in kwargs:
-            self.deviceRoot = kwargs['deviceRoot']
-        if 'testPrefix' in kwargs:
-            self.testPrefix = kwargs['testPrefix']
-        if 'extension' in kwargs:
-            self.extension = kwargs['extension']
-        if 'remotePort' in kwargs:
-            self.port = kwargs['remotePort']
-            if (self.port == None or self.port == '' or self.port <= 0):
-                self.port = '20701'
-
-        if (self.remoteDevice <> ''):
-          self._setupRemote(self.remoteDevice, self.port)
+    def __init__(self, options):
+        self.__dict__.update(options.__dict__)
 
         self.currentDate = self._getCurrentDateString()
         if not self.buildid:
@@ -315,140 +186,123 @@ class Usage(Exception):
     def __init__(self, msg):
         self.msg = msg
 
+class TalosOptions(optparse.OptionParser):
+    """Parses Mochitest commandline options."""
+    def __init__(self, **kwargs):
+        optparse.OptionParser.__init__(self, **kwargs)
+        defaults = {}
+
+        self.add_option("-v", "--verbose",
+                        action = "store_true", dest = "verbose",
+                        help = "display verbose output")
+        defaults["verbose"] = False
+    
+        self.add_option("-e", "--executablePath",
+                        action = "store", dest = "exePath",
+                        help = "path to executable we are testing")
+        defaults["exePath"] = ''
+    
+        self.add_option("-c", "--configPath",
+                        action = "store", dest = "configPath",
+                        help = "path to config file")
+        defaults["configPath"] = ''
+
+        self.add_option("-f", "--sampleConfig",
+                        action = "store", dest = "sampleConfig",
+                        help = "Input config file")
+        defaults["sampleConfig"] = 'sample.config'
+
+        self.add_option("-t", "--title",
+                        action = "store", dest = "title",
+                        help = "Title of the test run")
+        defaults["title"] = defaultTitle
+    
+        self.add_option("--branchName",
+                        action = "store", dest = "branchName",
+                        help = "Name of the branch we are testing on")
+        defaults["branchName"] = ''
+
+        self.add_option("-b", "--branch",
+                        action = "store", dest = "branch",
+                        help = "Product branch we are testing on")
+        defaults["branch"] = ''
+
+        self.add_option("-o", "--output",
+                        action = "store", dest = "outputName",
+                        help = "Output file")
+        defaults["outputName"] = ''
+
+        self.add_option("-i", "--id",
+                        action = "store_true", dest = "buildid",
+                        help = "Build ID of the product we are testing")
+        defaults["buildid"] = ''
+
+        self.add_option("-u", "--useId",
+                        action = "store", dest = "useId",
+                        help = "Use the buildid as the testdate")
+        defaults["useId"] = False
+
+        self.add_option("-d", "--testDate",
+                        action = "store", dest = "testDate",
+                        help = "Test date for the test run")
+        defaults["testDate"] = ''
+
+        self.add_option("-w", "--browserWait",
+                        action = "store", type="int", dest = "browserWait",
+                        help = "Amount of time allowed for the browser to cleanly close")
+        defaults["browserWait"] = 5
+
+        self.add_option("-s", "--resultsServer",
+                        action = "store", dest = "resultsServer",
+                        help = "Address of the results server")
+        defaults["resultsServer"] = ''
+    
+        self.add_option("-l", "--resultsLink",
+                        action = "store", dest = "resultsLink",
+                        help = "Link to the results from this test run")
+        defaults["resultsLink"] = ''
+
+        self.add_option("-a", "--activeTests",
+                        action = "store", dest = "activeTests",
+                        help = "List of tests to run, separated by ':' (ex. ts:tp4:tsvg)")
+        defaults["activeTests"] = ''
+
+        self.add_option("-n", "--noChrome",
+                        action = "store_true", dest = "noChrome",
+                        help = "do not run tests as chrome")
+        defaults["noChrome"] = False
+
+        self.add_option("--testPrefix",
+                        action = "store", dest = "testPrefix",
+                        help = "the prefix for the test we are running")
+        defaults["testPrefix"] = ''
+
+        self.add_option("--extension",
+                        action = "store", dest = "extension",
+                        help = "Extension to install while running")
+        defaults["extension"] = ''
+    
+        self.add_option("--fast",
+                        action = "store_true", dest = "fast",
+                        help = "Run tp tests as tp_fast")
+        defaults["fast"] = False
+    
+        self.add_option("--symbolsPath",
+                        action = "store", dest = "symbolsPath",
+                        help = "Path to the symbols for the build we are testing")
+        defaults["symbolsPath"] = ''
+
+        self.add_option("--test_timeout",
+                        action = "store", type="int", dest = "test_timeout",
+                        help = "Time to wait for the browser to output to the log file")
+        defaults["test_timeout"] = 1200
+
+        self.set_defaults(**defaults)
+
 def main(argv=None):
-    exePath = ""
-    configPath = ""
-    sampleConfig = "sample.config"
-    output = ""
-    title = defaultTitle
-    branch = ""
-    branchName = ""
-    testDate = ""
-    browserWait = "5"
-    verbose = False
-    buildid = ""
-    useId = False
-    resultsServer = ''
-    resultsLink = ''
-    activeTests = ''
-    noChrome = False
-    fast = False
-    symbolsPath = None
-    remoteDevice = ''
-    remotePort = ''
-    webServer = 'localhost'
-    deviceRoot = ''
-    testPrefix = ''
-    extension = ''
-    test_timeout = ''
-
-    if argv is None:
-        argv = sys.argv
-    try:
-        try:
-            opts, args = getopt.getopt(argv[1:], "hvue:c:t:b:o:i:d:s:l:a:n:r:p:w", 
-                ["help", "verbose", "useId", "executablePath=", 
-                "configFilePath=", "sampleConfig=", "title=", 
-                "branch=", "output=", "id=", "testDate=", "browserWait=",
-                "resultsServer=", "resultsLink=", "activeTests=", 
-                "noChrome", "testPrefix=", "extension=", "branchName=", "fast", "symbolsPath=",
-                "remoteDevice=", "remotePort=", "webServer=", "deviceRoot=", "testTimeout="])
-        except getopt.error, msg:
-            raise Usage(msg)
-        
-        # option processing
-        for option, value in opts:
-            if option in ("-v", "--verbose"):
-                verbose = True
-            if option in ("-h", "--help"):
-                raise Usage(help_message)
-            if option in ("-e", "--executablePath"):
-                exePath = value
-            if option in ("-c", "--configFilePath"):
-                configPath = value
-            if option in ("-f", "--sampleConfig"):
-                sampleConfig = value
-            if option in ("-t", "--title"):
-                title = value
-            if option in ("-b", "--branch"):
-                branch = value
-            if option in ("--branchName"):
-                branchName = value
-            if option in ("-o", "--output"):
-                output = value
-            if option in ("-i", "--id"):
-                buildid = value
-            if option in ("-d", "--testDate"):
-                testDate = value
-            if option in ("-w", "--browserWait"):
-                browserWait = value
-            if option in ("-u", "--useId"):
-                useId = True
-            if option in ("-s", "--resultsServer"):
-                resultsServer = value
-            if option in ("-l", "--resultsLink"):
-                resultsLink = value
-            if option in ("-a", "--activeTests"):
-                activeTests = value
-            if option in ("-n", "--noChrome"):
-                noChrome = True
-            if option in ("--testPrefix",):
-                testPrefix = value
-            if option in ("--extension",):
-                extension = value
-            if option in ("-r", "--remoteDevice"):
-                remoteDevice = value
-            if option in ("-p", "--remotePort"):
-                remotePort = value
-            if option in ("-w", "--webServer"):
-                webServer = value
-            if option in ("--deviceRoot",):
-                deviceRoot = value
-            if option in ("--fast",):
-                fast = True
-            if option in ("--symbolsPath",):
-                symbolsPath = value
-            if option in ("--testTimeout",):
-                test_timeout = value
-        
-    except Usage, err:
-        print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
-        print >> sys.stderr, "\t for help use --help"
-        return 2
-
-    #remotePort will default to 20701 and is optional.
-    #webServer can be used without remoteDevice, but is required when using remoteDevice
-    if (remoteDevice != '' or deviceRoot != ''):
-        if (webServer == 'localhost' or remoteDevice == ''):
-            print "\nERROR: When running Talos on a remote device, you need to provide a webServer, and optionally a remotePort"
-            print help_message
-            return 2
-
-    configurator = PerfConfigurator(title=title,
-                                    executablePath=exePath,
-                                    configFilePath=configPath,
-                                    sampleConfig=sampleConfig,
-                                    buildid=buildid,
-                                    branch=branch,
-                                    branchName=branchName,
-                                    verbose=verbose,
-                                    testDate=testDate,
-                                    browserWait=browserWait,
-                                    outputName=output,
-                                    useId=useId,
-                                    resultsServer=resultsServer,
-                                    resultsLink=resultsLink,
-                                    activeTests=activeTests,
-                                    noChrome=noChrome,
-                                    fast=fast,
-                                    testPrefix=testPrefix,
-                                    extension=extension,
-                                    symbolsPath=symbolsPath,
-                                    remoteDevice=remoteDevice,
-                                    remotePort=remotePort,
-                                    webServer=webServer,
-                                    deviceRoot=deviceRoot,
-                                    test_timeout=test_timeout)
+    parser = TalosOptions()
+    options, args = parser.parse_args()
+    configurator = PerfConfigurator(options);
     try:
         configurator.writeConfigFile()
     except Configuration, err:
