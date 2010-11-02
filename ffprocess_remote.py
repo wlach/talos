@@ -164,8 +164,8 @@ class RemoteProcess(FFProcess):
             temp = True
 
         re_nofile = re.compile("error:.*")
-        
         data = self.testAgent.getFile(handle, localFile)
+        time.sleep(1.0) #allow for data transfer before deleting file
         if (temp == True):
           shutil.rmtree(tempdir)
         if (re_nofile.match(data)):
