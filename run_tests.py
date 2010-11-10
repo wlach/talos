@@ -238,9 +238,11 @@ def send_to_graph(results_server, results_link, machine, date, browser_config, r
     #counters collected for this test
     for cd in counter_dump:
       for count_type in cd:
-        vals = [[x, 'NULL'] for x in cd[count_type]]
         counterName = testname + '_' + shortName(count_type)
-        utils.stamped_msg("Generating results file: " + counterName, "Started")
+        if cd[count_type] == []: #failed to collect any data for this counter
+          utils.stamped_msg("No results collected for: " + counterName, "Error")
+          continue
+        vals = [[x, 'NULL'] for x in cd[count_type]]
         if print_format == "tpformat":
           counterName += browser_config['test_name_extension']
         utils.stamped_msg("Generating results file: " + counterName, "Started")
