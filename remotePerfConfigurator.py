@@ -50,6 +50,26 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             newline = '%s: %s\n' % (parts[0], lfile)
         return printMe, newline
 
+    def buildRemoteTwinopen(self):
+        """
+          twinopen needs to run locally as it is a .xul file.
+          copy bits to <deviceroot>/talos and fix line to reference that
+        """
+        if self._remote == False:
+            return
+
+        files = ['page_load_test/quit.js',
+                 'scripts/MozillaFileLogger.js',
+                 'startup_test/twinopen/winopen.xul',
+                 'startup_test/twinopen/winopen.js',
+                 'startup_test/twinopen/child-window.html']
+
+        talosRoot = self.deviceRoot + '/talos/'
+        for file in files:
+            if self.testAgent.pushFile(file, talosRoot + file) == None:
+                raise pc.Configuration("Unable to copy twinopen file " 
+                                      + file + " to " + talosRoot + file)
+
     def convertUrlToRemote(self, line):
         """
           For a give url line in the .config file, add a webserver.
@@ -66,6 +86,9 @@ class remotePerfConfigurator(pc.PerfConfigurator):
                 newline += 'http://' + self.webServer + '/' + part
             elif ('.manifest' in part):
                 newline += self.buildRemoteManifest(part)
+            elif ('winopen.xul' in part):
+                self.buildRemoteTwinopen()
+                newline += 'file://' + self.deviceRoot + '/talos/' + part
             elif ('.xul' in part):
                 newline += 'http://' + self.webServer + '/' + part
             else:
