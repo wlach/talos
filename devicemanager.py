@@ -37,6 +37,7 @@
 # ***** END LICENSE BLOCK *****
 
 import socket
+import SocketServer
 import time, datetime
 import os
 import re
@@ -58,14 +59,14 @@ class FileError(Exception):
 class DeviceManager:
   host = ''
   port = 0
-  debug = 2
+  debug = 2 
   _redo = False
   deviceRoot = None
   tempRoot = os.getcwd()
   base_prompt = '\$\>'
   prompt_sep = '\x00'
   prompt_regex = '.*' + base_prompt + prompt_sep
-  agentErrorRE = re.compile('^##AGENT-ERROR##.*')
+  agentErrorRE = re.compile('^##AGENT-WARNING##.*')
 
   def __init__(self, host, port = 20701):
     self.host = host
@@ -272,7 +273,10 @@ class DeviceManager:
       return None
   
   def mkDir(self, name):
-    return self.sendCMD(['mkdr ' + name])
+    if (self.dirExists(name)):
+      return name
+    else:
+      return self.sendCMD(['mkdr ' + name])
   
   # make directory structure on the device
   def mkDirs(self, filename):
@@ -306,7 +310,9 @@ class DeviceManager:
     match = ".*" + dirname + "$"
     dirre = re.compile(match)
     data = self.sendCMD(['cd ' + dirname, 'cwd'])
-    if (data == None):
+    # Because this is a compound command, cd can fail while cwd can succeed, 
+    # we should check for agent error directly
+    if (data == None or self.agentErrorRE.match(data) ):
       return None
     retVal = self.stripPrompt(data)
     data = retVal.split('\n')
@@ -330,13 +336,14 @@ class DeviceManager:
 
   # list files on the device, requires cd to directory first
   def listFiles(self, rootdir):
+    rootdir = rootdir.rstrip('/')
     if (self.dirExists(rootdir) == False):
       return []  
     data = self.sendCMD(['cd ' + rootdir, 'ls'])
     if (data == None):
       return None
     retVal = self.stripPrompt(data)
-    return retVal.split('\n')
+    return filter(lambda x: x, retVal.split('\n'))
 
   def removeFile(self, filename):
     if (self.debug>= 2): print "removing file: " + filename
@@ -387,7 +394,6 @@ class DeviceManager:
     time.sleep(30)
 
     self.process = self.processExist(appname)
-    self.appname = appname
     if (self.debug >= 4): print "got pid: " + str(self.process) + " for process: " + str(appname)
 
   def launchProcess(self, cmd, outputFile = "process.txt", cwd = ''):
@@ -407,7 +413,7 @@ class DeviceManager:
       total_time = 0
       while total_time < timeout:
         time.sleep(interval)
-        if (self.poll(process) == None):
+        if (not self.poll(process)):
           timed_out = False
           break
         total_time += interval
@@ -420,8 +426,7 @@ class DeviceManager:
 
   def poll(self, process):
     try:
-      exists = self.processExist(self.appname)
-      if (exists == None or exists == ''):
+      if (self.processExist(process) == ''):
         return None
       return 1
     except:
@@ -459,6 +464,12 @@ class DeviceManager:
     if (data == None):
       return None
     return self.stripPrompt(data).strip('\n')
+
+  def catFile(self, remoteFile):
+    data = self.sendCMD(['cat ' + remoteFile])
+    if data == None:
+        return None
+    return self.stripPrompt(data)
   
   # copy file from device (remoteFile) to host (localFile)
   def getFile(self, remoteFile, localFile = ''):
@@ -466,10 +477,7 @@ class DeviceManager:
         localFile = os.path.join(self.tempRoot, "temp.txt")
   
     promptre = re.compile(self.prompt_regex + '.*')
-    data = self.sendCMD(['cat ' + remoteFile])
-    if (data == None):
-      return None
-    retVal = self.stripPrompt(data)
+    retVal = self.catFile(remoteFile)
     fhandle = open(localFile, 'wb')
     fhandle.write(retVal)
     fhandle.close()
@@ -485,15 +493,19 @@ class DeviceManager:
     if not os.path.exists(localDir):
       os.makedirs(localDir)
   
-    # TODO: is this a comprehensive file regex?
-    isFile = re.compile('^([a-zA-Z0-9_\-\. ]+)\.([a-zA-Z0-9]+)$')
     for f in filelist:
-      if (isFile.match(f)):
-        if (self.getFile(remoteDir + '/' + f, os.path.join(localDir, f)) == None):
-          return None
-      else:
+      if (self.isDir(os.path.join(remoteDir, f))):
         if (self.getDirectory(remoteDir + '/' + f, os.path.join(localDir, f)) == None):
           return None
+      else:
+        if (self.getFile(remoteDir + '/' + f, os.path.join(localDir, f)) == None):
+          return None
+    return filelist
+
+  def isDir(self, remotePath):
+    data = self.sendCMD(['isdir ' + remotePath])
+    retVal = self.stripPrompt(data).strip()
+    return retVal == 'TRUE'
 
   # true/false check if the two files have the same md5 sum
   def validateFile(self, remoteFile, localFile):
@@ -551,11 +563,12 @@ class DeviceManager:
   #       /reftest
   #       /mochitest
   def getDeviceRoot(self):
-    if (not self.deviceRoot):
-      data = self.sendCMD(['testroot'])
-      if (data == None):
-        return '/tests'
-      self.deviceRoot = self.stripPrompt(data).strip('\n') + '/tests'
+    # This caching of deviceRoot is causing issues if things fail
+    # if (not self.deviceRoot):
+    data = self.sendCMD(['testroot'])
+    if (data == None):
+      return '/tests'
+    self.deviceRoot = self.stripPrompt(data).strip('\n') + '/tests'
 
     if (not self.dirExists(self.deviceRoot)):
       self.mkDir(self.deviceRoot)
@@ -692,8 +705,8 @@ class DeviceManager:
   Application bundle - path to the application bundle on the device
   Destination - destination directory of where application should be
                 installed to (optional)
-  Returns True or False depending on what we get back
-  TODO: we need a real way to know if this works or not
+  Returns None for success, or output if known failure
+  TODO: we need a better way to know if this works or not
   """
   def installApp(self, appBundlePath, destPath=None):
     cmd = 'inst ' + appBundlePath
@@ -701,9 +714,13 @@ class DeviceManager:
       cmd += ' ' + destPath
     data = self.sendCMD([cmd])
     if (data is None):
-      return False
-    else:
-      return True
+      return None
+    
+    f = re.compile('Failure')
+    for line in data.split():
+      if (f.match(line)):
+        return data
+    return None
 
   """
   Uninstalls the named application from device and causes a reboot.
@@ -716,8 +733,55 @@ class DeviceManager:
     cmd = 'uninst ' + appName
     if installPath:
       cmd += ' ' + installPath
-    self.sendCMD([cmd])
+    data = self.sendCMD([cmd])
+    if (self.debug > 3): print "uninstallAppAndReboot: " + str(data)
     return True
+
+  """
+  Updates the application on the device.
+  Application bundle - path to the application bundle on the device
+  Process name of application - used to end the process if the applicaiton is
+                                currently running
+  Destination - Destination directory to where the application should be
+                installed (optional)
+  ipAddr - IP address to await a callback ping to let us know that the device has updated
+           properly - defaults to current IP.
+  port - port to await a callback ping to let us know that the device has updated properly
+         defaults to 30000, and counts up from there if it finds a conflict
+  Returns True if succeeds, False if not
+  
+  NOTE: We have no real way to know if the device gets updated or not due to the
+        reboot that the udpate call forces on us.  We can't install our own heartbeat
+        listener here because we run the risk of racing with other heartbeat listeners.
+  """
+  def updateApp(self, appBundlePath, processName=None, destPath=None, ipAddr=None, port=None):
+    status = None
+    cmd = 'updt '
+    if (processName == None):
+      # Then we pass '' for processName
+      cmd += "'' " + appBundlePath
+    else:
+      cmd += processName + ' ' + appBundlePath
+
+    if (destPath):
+      cmd += " " + destPath
+
+    if port:
+      ip, port = self.getCallbackIpAndPort(ipAddr, port)
+    else:
+      ip, port = self.getCallbackIpAndPort(ipAddr, 30000)
+
+    cmd += " %s %s" % (ip, port)
+
+    if (self.debug > 3): print "updateApp using command: " + str(cmd)
+
+    # Set up our callback server
+    callbacksvr = callbackServer(ip, port, self.debug)
+    data = self.sendCMD([cmd])
+    status = callbacksvr.disconnect()
+    if (self.debug > 3): print "got status back: " + str(status)
+
+    return status
 
   """
     return the current time on the device
@@ -728,3 +792,112 @@ class DeviceManager:
       return None
     return self.stripPrompt(data).strip('\n')
 
+  """
+    Connect the ipaddress and port for a callback ping.  Defaults to current IP address
+    And ports starting at 30000.
+    NOTE: the detection for current IP address only works on Linux!
+  """
+  def getCallbackIpAndPort(self, aIp, aPort):
+    ip = aIp
+    nettools = NetworkTools()
+    if (ip == None):
+      ip = nettools.getLanIp()
+    if (aPort != None):
+      port = nettools.findOpenPort(ip, aPort)
+    else:
+      port = nettools.findOpenPort(ip, 30000)
+    return ip, port
+
+gCallbackData = ''
+
+class callbackServer():
+  def __init__(self, ip, port, debuglevel):
+    self.ip = ip
+    self.port = port
+    self.connected = False
+    self.debug = debuglevel
+    if (self.debug > 3) : print "Creating server with " + str(ip) + ":" + str(port)
+    self.server = SocketServer.TCPServer((ip, port), self.myhandler)
+    self.server_thread = Thread(target=self.server.serve_forever) 
+    self.server_thread.setDaemon(True)
+    self.server_thread.start()
+
+  def disconnect(self, step = 60, timeout = 600):
+    t = 0
+    if (self.debug > 3): print "Calling disconnect on callback server"
+    while t < timeout:
+      if (gCallbackData):
+        # Got the data back
+        if (self.debug > 3): print "Got data back from agent: " + str(gCallbackData)
+        break
+      time.sleep(step)
+      t += step
+
+    try:
+      if (self.debug > 3): print "Shutting down server now"
+      self.server.shutdown()
+    except:
+      print "Unable to shutdown callback server - check for a connection on port: " + str(self.port)
+    return gCallbackData
+
+  class myhandler(SocketServer.BaseRequestHandler):
+    def handle(self):
+      global gCallbackData
+      gCallbackData = self.request.recv(1024)
+      #print "Callback Handler got data: " + str(gCallbackData)
+      self.request.send("OK")
+  
+class NetworkTools:
+  def __init__(self):
+    pass
+
+  # Utilities to get the local ip address
+  def getInterfaceIp(self, ifname):
+    if os.name != "nt":
+      import fcntl
+      import struct
+      s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+      return socket.inet_ntoa(fcntl.ioctl(
+                              s.fileno(),
+                              0x8915,  # SIOCGIFADDR
+                              struct.pack('256s', ifname[:15])
+                              )[20:24])
+    else:
+      return None
+
+  def getLanIp(self):
+    ip = socket.gethostbyname(socket.gethostname())
+    if ip.startswith("127.") and os.name != "nt":
+      interfaces = ["eth0","eth1","eth2","wlan0","wlan1","wifi0","ath0","ath1","ppp0"]
+      for ifname in interfaces:
+        try:
+          ip = self.getInterfaceIp(ifname)
+          break;
+        except IOError:
+          pass
+    return ip
+
+  # Gets an open port starting with the seed by incrementing by 1 each time
+  def findOpenPort(self, ip, seed):
+    try:
+      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      connected = False
+      if isinstance(seed, basestring):
+        seed = int(seed)
+      maxportnum = seed + 5000 # We will try at most 5000 ports to find an open one
+      while not connected:
+        try:
+          s.bind((ip, seed))
+          connected = True
+          s.close()
+        except:          
+          if seed > maxportnum:
+            print "Could not find open port after checking 5000 ports"
+          raise
+        seed += 1
+    except:
+      print "Socket error trying to find open port"
+        
+    return seed
+    

@@ -189,7 +189,7 @@ class RemoteProcess(FFProcess):
             total_time = 0
             while total_time < timeout:
                 time.sleep(1)
-                if (not self.poll(handle)):
+                if (self.poll(cmd) is None):
                     timed_out = False
                     break
                 total_time += 1
@@ -201,7 +201,7 @@ class RemoteProcess(FFProcess):
   
     def poll(self, process):
         try:
-            if (not self.testAgent.poll(None)):
+            if (self.testAgent.poll(process) == None):
                 return None
             return 1
         except:
