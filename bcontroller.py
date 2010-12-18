@@ -112,7 +112,7 @@ class BrowserWaiter(threading.Thread):
 class BrowserController:
 
   def __init__(self, command, mod, name, child_process, 
-               timeout, log,  test_timeout, host='', port=20701, root=''):
+               timeout, log,  test_timeout, host='', port=20701, root='', env=''):
     global ffprocess
     self.command = command
     self.mod = mod
@@ -125,11 +125,14 @@ class BrowserController:
     self.host = host
     self.port = port
     self.root = root
+    self.env = env
 
     if (host <> ''):
       from ffprocess_remote import RemoteProcess
       platform_type = 'win_' 
       ffprocess = RemoteProcess(host, port, root)
+      if (self.env is not ''):
+        self.command = ' "%s" %s' % (self.env, self.command)
 
     self.ffprocess = ffprocess
 
@@ -183,11 +186,13 @@ def main(argv=None):
    deviceRoot = ""
    port = 20701
    test_timeout = 1200 #no output from the browser in 20 minutes = failure
+   env = ""
 
    if argv is None:
         argv = sys.argv
    opts, args = getopt.getopt(argv[1:], "c:t:n:p:l:m:h:r:o:d", ["command=", "timeout=", "name=", "child_process=", 
-                                                              "log=", "mod=", "host=", "deviceRoot=", "port=", "test_timeout="])
+                                                              "log=", "mod=", "host=", "deviceRoot=", "port=", 
+                                                              "test_timeout=", "env="])
 
    # option processing
    for option, value in opts:
@@ -211,9 +216,11 @@ def main(argv=None):
        deviceRoot = value
      if option in ("-o", "--port"):
        port = value
+     if option in ("--env",):
+       env = value
 
    if command and timeout and log:
-     bcontroller = BrowserController(command, mod, name, child_process, timeout, log, test_timeout, host, port, deviceRoot)
+     bcontroller = BrowserController(command, mod, name, child_process, timeout, log, test_timeout, host, port, deviceRoot, env)
      bcontroller.run()
    else:
      print "\nFAIL: no command\n"

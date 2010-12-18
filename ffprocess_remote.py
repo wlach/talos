@@ -168,6 +168,8 @@ class RemoteProcess(FFProcess):
         time.sleep(1.0) #allow for data transfer before deleting file
         if (temp == True):
           shutil.rmtree(tempdir)
+        if data == None:
+          return ''
         if (re_nofile.match(data)):
             fileData = ''
             if (os.path.isfile(handle)):

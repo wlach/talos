@@ -277,6 +277,16 @@ class TTest(object):
                     b_cmd += ' --host "%s" ' % (browser_config['host'])
                     b_cmd += ' --port "%s" ' % (browser_config['port'])
                     b_cmd += ' --deviceRoot "%s" ' % (browser_config['deviceroot'])
+                    b_env = ''
+                    first = True
+                    for e in browser_config['env']:
+                      if (first == False):
+                        b_env += ','
+                      else:
+                        first = False
+                      b_env += str(e) + '=' + str(browser_config['env'][e])
+                    if (b_env is not ''):
+                      b_cmd += ' --env "%s" ' % (b_env)
 
                 process = subprocess.Popen(b_cmd, universal_newlines=True, shell=True, bufsize=0, env=os.environ)
   

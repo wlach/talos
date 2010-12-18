@@ -93,6 +93,7 @@ class FFSetup(object):
         self._deviceroot = options['deviceroot']
         self._host = options['host']
         self._port = options['port']
+        self._env = options['env']
         
     def PrefString(self, name, value, newline):
         """Helper function to create a pref string for profile prefs.js
@@ -256,6 +257,16 @@ class FFSetup(object):
             b_cmd += ' --host %s' % (self._host)
             b_cmd += ' --port %s' % (self._port)
             b_cmd += ' --deviceRoot %s' % (self._deviceroot)
+            b_env = ''
+            first = True
+            for e in self._env:
+              if (first == False):
+                b_env += ','
+              else:
+                first = False
+              b_env += str(e) + '=' + str(self._env[e])
+            if (b_env is not ''):
+              b_cmd += ' --env "%s" ' % (b_env)
 
         process = subprocess.Popen(b_cmd, universal_newlines=True, shell=True, bufsize=0, env=os.environ)
 
