@@ -153,7 +153,11 @@ class PerfConfigurator:
         return printMe, newline
 
     def writeConfigFile(self):
-        configFile = open(path.join(self.configPath, self.sampleConfig))
+        try:
+            configFile = open(path.join(self.configPath, self.sampleConfig))
+        except:
+            raise Configuration("unable to find %s, please check your filename for --sampleConfig" % path.join(self.configPath, self.sampleConfig))
+
         destination = open(self.outputName, "w")
         config = configFile.readlines()
         configFile.close()

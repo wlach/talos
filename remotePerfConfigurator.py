@@ -1,4 +1,5 @@
 import PerfConfigurator as pc
+from PerfConfigurator import Configuration
 import os, sys
 import optparse
 
@@ -174,13 +175,15 @@ class remoteTalosOptions(pc.TalosOptions):
                     type = "string", dest = "deviceRoot",
                     help = "path on the device that will hold files and the profile")
         defaults["deviceRoot"] = ''
+
+        defaults["sampleConfig"] = 'remote.config'
         self.set_defaults(**defaults)
 
     def verifyOptions(self, options):
         #webServer can be used without remoteDevice, but is required when using remoteDevice
         if (options.remoteDevice != '' or options.deviceRoot != ''):
             if (options.webServer == 'localhost'  or options.remoteDevice == ''):
-                raise AssertionError("ERROR: When running Talos on a remote device, you need to provide a webServer and optionally a remotePort")
+                raise Configuration("ERROR: When running Talos on a remote device, you need to provide a webServer and optionally a remotePort")
         return options
 
 def main(argv=None):
@@ -189,7 +192,7 @@ def main(argv=None):
 
     try:
         options = parser.verifyOptions(options)
-    except err:
+    except Configuration, err:
         print err.msg
         return 2
 
