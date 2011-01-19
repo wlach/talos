@@ -16,8 +16,15 @@ class remotePerfConfigurator(pc.PerfConfigurator):
 
     def _setupRemote(self):
         import devicemanager
-        self.testAgent = devicemanager.DeviceManager(self.remoteDevice, self.remotePort)
-        self.deviceRoot = self.testAgent.getDeviceRoot()
+        try:
+            self.testAgent = devicemanager.DeviceManager(self.remoteDevice, self.remotePort)
+            self.deviceRoot = self.testAgent.getDeviceRoot()
+        except:
+            raise DMError("Unable to connect to remote device '%s'" % self.remoteDevice)
+
+        if (self.deviceRoot is None):
+            raise DMError("Unable to connect to remote device '%s'" % self.remoteDevice)
+
         self._remote = True
 
     def _dumpConfiguration(self):
@@ -66,7 +73,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
 
         talosRoot = self.deviceRoot + '/talos/'
         for file in files:
-            if self.testAgent.pushFile(file, talosRoot + file) == None:
+            if self.testAgent.pushFile(file, talosRoot + file) == False:
                 raise pc.Configuration("Unable to copy twinopen file " 
                                       + file + " to " + talosRoot + file)
 
@@ -116,7 +123,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
         newHandle.close()
 
         remoteName += '/' + os.path.basename(manifestName) + ' '
-        if self.testAgent.pushFile(manifestName + '.remote', remoteName) == None:
+        if self.testAgent.pushFile(manifestName + '.remote', remoteName) == False:
             raise pc.Configuration("Unable to copy remote manifest file " 
                                 + manifestName + ".remote to " + remoteName)
         return remoteName
@@ -181,12 +188,17 @@ def main(argv=None):
     options, args = parser.parse_args()
 
     try:
-      options = parser.verifyOptions(options)
+        options = parser.verifyOptions(options)
     except err:
-      print err.msg
-      return 2
+        print err.msg
+        return 2
 
-    configurator = remotePerfConfigurator(options)
+    try:
+        configurator = remotePerfConfigurator(options)
+    except:
+        print "Unable to connect to remote device"
+        return 2
+
     try:
         configurator.writeConfigFile()
     except pc.Configuration, err:

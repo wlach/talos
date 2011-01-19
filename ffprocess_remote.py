@@ -36,6 +36,7 @@ import time
 import tempfile
 import re
 import shutil
+from utils import talosError
 
 DEFAULT_PORT = 20701
 
@@ -183,7 +184,8 @@ class RemoteProcess(FFProcess):
         if (outputFile == "process.txt"):
             outputFile = self.rootdir + self.dirSlash + "process.txt"
             cmd += " > " + outputFile
-        self.testAgent.fireProcess(cmd)
+        if (self.testAgent.fireProcess(cmd) is None):
+            return None
         handle = outputFile
   
         timed_out = True
@@ -203,35 +205,43 @@ class RemoteProcess(FFProcess):
   
     def poll(self, process):
         try:
-            if (self.testAgent.poll(process) == None):
+            if (self.testAgent.processExist(process) == None):
                 return None
             return 1
         except:
             return None
         return 1
   
+    #currently this is only used during setup of newprofile from ffsetup.py
     def copyDirToDevice(self, localDir):
         head, tail = os.path.split(localDir)
 
         remoteDir = self.rootdir + self.dirSlash + tail
-        self.testAgent.pushDir(localDir, remoteDir)
+        if (self.testAgent.pushDir(localDir, remoteDir) is None):
+            raise talosError("Unable to copy '%s' to remote device '%s'" % (localDir, remoteDir))
         return remoteDir
   
     def removeDirectory(self, dir):
-        self.testAgent.removeDir(dir)
+        if (self.testAgent.removeDir(dir) is None):
+            raise talosError("Unable to remove directory on remote device")
 
     def MakeDirectoryContentsWritable(self, dir):
         pass
 
     def copyFile(self, fromfile, toDir):
-        toDir = toDir.replace("/", self.dirSlash)
-        self.testAgent.pushFile(fromfile, toDir + self.dirSlash + os.path.basename(fromfile))
+        toDir = toDir.replace("/", self.dirSlash) 
+        if (self.testAgent.pushFile(fromfile, toDir + self.dirSlash + os.path.basename(fromfile)) is False):
+            raise talosError("Unable to copy file '%s' to directory '%s' on the remote device" % (fromfile, toDir))
 
     def getCurrentTime(self):
-        return self.testAgent.getCurrentTime()
-        
+        #we will not raise an error here because the functions that depend on this do their own error handling
+        data = self.testAgent.getCurrentTime()
+        return data
+
     def getDeviceRoot(self):
-        return self.testAgent.getDeviceRoot()
+        #we will not raise an error here because the functions that depend on this do their own error handling
+        data = self.testAgent.getDeviceRoot()
+        return data
 
     def addRemoteServerPref(self, profile_dir, server):
         """

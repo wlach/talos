@@ -83,18 +83,28 @@ class BrowserWaiter(threading.Thread):
     if self.mod:
       if (self.deviceManager.__class__.__name__ == "RemoteProcess"):
         if (self.mod == "str(int(time.time()*1000))"):
-          self.command += self.deviceManager.getCurrentTime()
+          curtime = self.deviceManager.getCurrentTime()
+          if curtime is None:
+            self.returncode = 1
+            self.endtime = 0
+            return
+
+          self.command += curtime
       else:
         self.command = self.command + eval(self.mod)
 
     if (self.deviceManager.__class__.__name__ == "RemoteProcess"):
-      remoteLog = self.deviceManager.getDeviceRoot() + '/' + self.log.split('/')[-1]
-      retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=self.timeout)
-      if retVal <> None:
-        self.deviceManager.getFile(retVal, self.log)
-        self.returncode = 0
-      else:
+      devroot = self.deviceManager.getDeviceRoot()
+      if (devroot == None):
         self.returncode = 1
+      else:
+        remoteLog = devroot + '/' + self.log.split('/')[-1]
+        retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=self.timeout)
+        if retVal <> None:
+          self.deviceManager.getFile(retVal, self.log)
+          self.returncode = 0
+        else:
+          self.returncode = 1
     else:    #blocking call to system
       self.returncode = os.system(self.command + " > " + self.log) 
 
