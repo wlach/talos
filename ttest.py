@@ -82,38 +82,50 @@ class TTest(object):
     RESULTS_REGEX_FAIL = re.compile('__FAIL(.*?)__FAIL', re.DOTALL|re.MULTILINE)
 
     def __init__(self, remote = False):
+        cmanager, platformtype, ffprocess = self.getPlatformType(remote)
+        self.cmanager = cmanager
+        self.platform_type = platformtype
+        self._ffprocess = ffprocess
+        self._hostproc = ffprocess
         self.remote = remote
-        self.cmanager = None
-        if self.remote == True:
-            self.platform_type = 'win_'
-        elif platform.system() == "Linux":
-            self.cmanager = __import__('cmanager_linux')
-            self.platform_type = 'linux_'
-            self._ffprocess = LinuxProcess()
-        elif platform.system() in ("Windows", "Microsoft"):
-            if '5.1' in platform.version(): #winxp
-              self.platform_type = 'win_'
-            elif '6.1' in platform.version(): #w7
-              self.platform_type = 'w7_'
-            else:
-              raise talosError('unsupported windows version')
-            self.cmanager = __import__('cmanager_win32')
-            self._ffprocess = Win32Process()
-        elif platform.system() == "Darwin":
-            self.cmanager = __import__('cmanager_mac')
-            self.platform_type = 'mac_'
-            self._ffprocess = MacProcess()
 
         self._ffsetup = FFSetup(self._ffprocess)
 
+    def getPlatformType(self, remote):
+        cmanager = None
+        _ffprocess = None
+        if remote == True:
+            platform_type = 'win_'
+        elif platform.system() == "Linux":
+            cmanager = __import__('cmanager_linux')
+            platform_type = 'linux_'
+            _ffprocess = LinuxProcess()
+        elif platform.system() in ("Windows", "Microsoft"):
+            if '5.1' in platform.version(): #winxp
+                platform_type = 'win_'
+            elif '6.1' in platform.version(): #w7
+                platform_type = 'w7_'
+            else:
+                raise talosError('unsupported windows version')
+            cmanager = __import__('cmanager_win32')
+            _ffprocess = Win32Process()
+        elif platform.system() == "Darwin":
+            cmanager = __import__('cmanager_mac')
+            platform_type = 'mac_'
+            _ffprocess = MacProcess()
+        return cmanager, platform_type, _ffprocess
+
     def initializeLibraries(self, browser_config):
         if ((browser_config['remote'] == True) and (browser_config['host'] <> '')):
+            cmanager, platform_type, ffprocess = self.getPlatformType(False)
+
             from ffprocess_remote import RemoteProcess
             self._ffprocess = RemoteProcess(browser_config['host'], 
                                            browser_config['port'], 
                                            browser_config['deviceroot'])
             self._ffsetup = FFSetup(self._ffprocess)
-            self._ffsetup.initializeRemoteDevice(browser_config)
+            self._ffsetup.initializeRemoteDevice(browser_config, ffprocess)
+            self._hostproc = ffprocess
 
     def createProfile(self, profile_path, browser_config):
         # Create the new profile
@@ -142,7 +154,7 @@ class TTest(object):
         # Delete the temp profile directory  Make it writeable first,
         # because every once in a while browser seems to drop a read-only
         # file into it.
-        self._ffprocess.removeDirectory(dir)
+        self._hostproc.removeDirectory(dir)
 
     def checkForCrashes(self, browser_config, profile_dir):
         if platform.system() in ('Windows', 'Microsoft'):

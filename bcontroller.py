@@ -104,7 +104,11 @@ class BrowserWaiter(threading.Thread):
           self.deviceManager.getFile(retVal, self.log)
           self.returncode = 0
         else:
-          self.returncode = 1
+          data = self.deviceManager.getFile(remoteLog, self.log)
+          if (data == ''):
+            self.returncode = 1
+          else:
+            self.returncode = 0
     else:    #blocking call to system
       self.returncode = os.system(self.command + " > " + self.log) 
 

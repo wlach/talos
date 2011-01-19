@@ -501,7 +501,7 @@ class DeviceManager:
     timeslept = 0
     while (timeslept <= 30):
       process = self.processExist(appname)
-      if (self.process is not None):
+      if (process is not None):
         break
       time.sleep(3)
       timeslept += 3

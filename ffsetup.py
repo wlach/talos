@@ -82,18 +82,24 @@ class FFSetup(object):
     _deviceroot = ''
     _host = ''
     _port = ''
+    _hostproc = None
 
     def __init__(self, procmgr, options = None):
         self.ffprocess = procmgr
+        self._hostproc = procmgr
         if options <> None:
             self.intializeRemoteDevice(options)
 
-    def initializeRemoteDevice(self, options):
+    def initializeRemoteDevice(self, options, hostproc = None):
         self._remoteWebServer = options['webserver']
         self._deviceroot = options['deviceroot']
         self._host = options['host']
         self._port = options['port']
         self._env = options['env']
+        if (hostproc == None):
+          self._hostproc = self.ffprocess
+        else:
+          self._hostproc = hostproc
         
     def PrefString(self, name, value, newline):
         """Helper function to create a pref string for profile prefs.js
@@ -184,7 +190,7 @@ class FFSetup(object):
         temp_dir = tempfile.mkdtemp()
         profile_dir = os.path.join(temp_dir, 'profile')
         shutil.copytree(source_profile, profile_dir)
-        self.ffprocess.MakeDirectoryContentsWritable(profile_dir)
+        self._hostproc.MakeDirectoryContentsWritable(profile_dir)
 
         # Copy the user-set prefs to user.js
         user_js_filename = os.path.join(profile_dir, 'user.js')
