@@ -460,6 +460,11 @@ def test_file(filename, to_screen):
   #pull buildid & sourcestamp from browser
   browser_config = browserInfo(browser_config, devicemanager = dm)
 
+  if (browser_config['remote'] == True):
+    procName = browser_config['browser_path'].split('/')[-1]
+    if (dm.processExist(procName)):
+      dm.killProcess(procName)
+
   utils.startTimer()
   utils.stamped_msg(title, "Started")
   for test in tests:
