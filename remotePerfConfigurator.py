@@ -52,6 +52,8 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             parts = line.split(':')
             if (parts[1] != None and parts[1].strip() == ''):
                 lfile = os.path.join(os.getcwd(), 'browser_output.txt')
+            elif (self.logFile != 'browser_output.txt'):
+                lfile = self.logFile
             else:
                 lfile = parts[1].strip().strip("'")
             lfile = self.deviceRoot + '/' + lfile.split('/')[-1]
