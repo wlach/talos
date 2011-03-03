@@ -173,6 +173,9 @@ def send_to_csv(csv_dir, results):
     for cd in counter_dump:
       for count_type in cd:
         counterName = res + '_' + shortName(count_type)
+        if cd[count_type] == []: #failed to collect any data for this counter
+          utils.stamped_msg("No results collected for: " + counterName, "Error")
+          continue
         if csv_dir:
           writer = csv.writer(open(os.path.join(csv_dir, counterName + '.csv'), "wb"))
         else:
@@ -187,16 +190,25 @@ def send_to_csv(csv_dir, results):
         else:
           writer.writerow(['RETURN: ' + counterName + ': ' + avg_excluding_max(cd[count_type]),])
 
-def construct_results (machine, testname, branch, sourcestamp, buildid, date, vals):
+def construct_results (machine, testname, browser_config, date, vals, amo):
   """ 
   Creates string formated for the collector script of the graph server
   Returns the completed string
   """
+  branch = browser_config['branch_name']
+  sourcestamp = browser_config['sourcestamp']
+  buildid = browser_config['buildid']
   #machine_name,test_name,branch_name,sourcestamp,buildid,date_run
   info_format = "%s,%s,%s,%s,%s,%s\n"
   data_string = ""
   data_string += "START\n"
-  data_string += "VALUES\n"
+  if (amo):
+    data_string += "AMO\n"
+    #browser_name,browser_version,addon_id
+    amo_format= "%s,%s,%s\n"
+    data_string += amo_format % (browser_config['browser_name'], browser_config['browser_version'], browser_config['addon_id'])
+  else:
+    data_string += "VALUES\n"
   data_string += info_format % (machine, testname, branch, sourcestamp, buildid, date)
   i = 0
   for val, page in vals:
@@ -205,9 +217,10 @@ def construct_results (machine, testname, branch, sourcestamp, buildid, date, va
   data_string += "END"
   return data_string
 
-def send_to_graph(results_server, results_link, machine, date, browser_config, results):
+def send_to_graph(results_server, results_link, machine, date, browser_config, results, amo):
   links = ''
   result_strings = []
+  result_testnames = []
 
   #construct all the strings of data, one string per test and one string  per counter
   for testname in results:
@@ -233,7 +246,8 @@ def send_to_graph(results_server, results_link, machine, date, browser_config, r
             vals.append([val, page])
     else:
       raise talosError("Unknown print format in send_to_graph")
-    result_strings.append(construct_results(machine, fullname, browser_config['branch_name'], browser_config['sourcestamp'], browser_config['buildid'], date, vals))
+    result_strings.append(construct_results(machine, fullname, browser_config, date, vals, amo))
+    result_testnames.append(fullname)
     utils.stamped_msg("Generating results file: " + testname, "Stopped")
     #counters collected for this test
     for cd in counter_dump:
@@ -246,11 +260,12 @@ def send_to_graph(results_server, results_link, machine, date, browser_config, r
         if print_format == "tpformat":
           counterName += browser_config['test_name_extension']
         utils.stamped_msg("Generating results file: " + counterName, "Started")
-        result_strings.append(construct_results(machine, counterName, browser_config['branch_name'], browser_config['sourcestamp'], browser_config['buildid'], date, vals))
+        result_strings.append(construct_results(machine, counterName, browser_config, date, vals, amo))
+        result_testnames.append(counterName)
         utils.stamped_msg("Generating results file: " + counterName, "Stopped")
     
   #send all the strings along to the graph server
-  for data_string in result_strings:
+  for data_string, testname in zip(result_strings, result_testnames):
     RETRIES = 5
     wait_time = 5
     times = 0
@@ -271,40 +286,50 @@ def send_to_graph(results_server, results_link, machine, date, browser_config, r
 
   return links
 
-def results_from_graph(links, results_server):
-  #take the results from the graph server collection script and put it into a pretty format for the waterfall
-  url_format = "http://%s/%s"
-  link_format= "<a href=\'%s\'>%s</a>"
-  first_results = 'RETURN:<br>'
-  last_results = '' 
-  full_results = '\nRETURN:<p style="font-size:smaller;">Details:<br>'  
-  lines = links.split('\n')
-  for line in lines:
-    if line == "":
-      continue
-    linkvalue = -1
-    linkdetail = ""
-    values = line.split("\t")
-    linkName = values[0]
-    if len(values) == 2:
-      linkdetail = values[1]
-    else:
-      linkvalue = float(values[1])
-      linkdetail = values[2]
-    if linkvalue > -1:
-      if isMemoryMetric(linkName):
-        linkName += ": " + filesizeformat(linkvalue)
+def results_from_graph(links, results_server, amo):
+  if amo:
+    #only get a pass/fail back from the graph server
+    lines = links.split('\n')
+    for line in lines:
+      if line == "":
+        continue
+      if line.lower() in ('success',):
+        print 'RETURN:addon results inserted successfully'
+    
+  else:
+    #take the results from the graph server collection script and put it into a pretty format for the waterfall
+    url_format = "http://%s/%s"
+    link_format= "<a href=\'%s\'>%s</a>"
+    first_results = 'RETURN:<br>'
+    last_results = '' 
+    full_results = '\nRETURN:<p style="font-size:smaller;">Details:<br>'  
+    lines = links.split('\n')
+    for line in lines:
+      if line == "":
+        continue
+      linkvalue = -1
+      linkdetail = ""
+      values = line.split("\t")
+      linkName = values[0]
+      if len(values) == 2:
+        linkdetail = values[1]
       else:
-        linkName += ": " + str(linkvalue)
-      url = url_format % (results_server, linkdetail)
-      link = link_format % (url, linkName)
-      first_results = first_results + "\nRETURN:" + link + "<br>"
-    else:
-      url = url_format % (results_server, linkdetail)
-      link = link_format % (url, linkName)
-      last_results = last_results + '| ' + link + ' '
-  full_results = first_results + full_results + last_results + '|</p>'
-  print full_results
+        linkvalue = float(values[1])
+        linkdetail = values[2]
+      if linkvalue > -1:
+        if isMemoryMetric(linkName):
+          linkName += ": " + filesizeformat(linkvalue)
+        else:
+          linkName += ": " + str(linkvalue)
+        url = url_format % (results_server, linkdetail)
+        link = link_format % (url, linkName)
+        first_results = first_results + "\nRETURN:" + link + "<br>"
+      else:
+        url = url_format % (results_server, linkdetail)
+        link = link_format % (url, linkName)
+        last_results = last_results + '| ' + link + ' '
+    full_results = first_results + full_results + last_results + '|</p>'
+    print full_results
 
 def browserInfo(browser_config, devicemanager = None):
   """Get the buildid and sourcestamp from the application.ini (if it exists)
@@ -326,6 +351,8 @@ def browserInfo(browser_config, devicemanager = None):
     reSourceStamp = re.compile('SourceStamp\s*=\s*(.*)$')
     reRepository = re.compile('SourceRepository\s*=\s*(.*)$')
     reBuildID = re.compile('BuildID\s*=\s*(.*)$')
+    reName = re.compile('Name\s*=\s*(.*)$')
+    reVersion = re.compile('Version\s*=\s*(.*)$')
     for line in appIniContents:
       match = re.match(reBuildID, line)
       if match:
@@ -337,6 +364,12 @@ def browserInfo(browser_config, devicemanager = None):
       match = re.match(reSourceStamp, line)
       if match:
           browser_config['sourcestamp'] = match.group(1)
+      match = re.match(reName, line)
+      if match:
+          browser_config['browser_name'] = match.group(1)
+      match = re.match(reVersion, line)
+      if match:
+          browser_config['browser_version'] = match.group(1)
   if ('repository' in browser_config) and ('sourcestamp' in browser_config):
     print 'RETURN:<a href = "' + browser_config['repository'] + '/rev/' + browser_config['sourcestamp'] + '">rev:' + browser_config['sourcestamp'] + '</a>'
   else:
@@ -344,7 +377,7 @@ def browserInfo(browser_config, devicemanager = None):
     browser_config['sourcestamp'] = 'NULL'
   return browser_config
 
-def test_file(filename, to_screen):
+def test_file(filename, to_screen, amo):
   """Runs the talos tests on the given config file and generates a report.
   
   Args:
@@ -437,6 +470,10 @@ def test_file(filename, to_screen):
       browser_config['test_timeout'] = yaml_config['test_timeout']
   else:
       browser_config['test_timeout'] = 1200
+  if 'addon_id' in yaml_config:
+      browser_config['addon_id'] = yaml_config['addon_id']
+  else:
+      browser_config['addon_id'] = 'NULL'
 
   #normalize paths to work accross platforms
   dm = None
@@ -478,7 +515,7 @@ def test_file(filename, to_screen):
       # If we're doing CSV, write this test immediately (bug 419367)
       if csv_dir != '':
         send_to_csv(csv_dir, {testname : results[testname]})
-      if to_screen:
+      if to_screen or amo:
         send_to_csv(None, {testname : results[testname]})
     except talosError, e:
       utils.stamped_msg("Failed " + testname, "Stopped")
@@ -498,8 +535,8 @@ def test_file(filename, to_screen):
           results_link is not None and 
           results_link is not ''):
         utils.stamped_msg("Sending results", "Started")
-        links = send_to_graph(results_server, results_link, title, date, browser_config, results)
-        results_from_graph(links, results_server)
+        links = send_to_graph(results_server, results_link, title, date, browser_config, results, amo)
+        results_from_graph(links, results_server, amo)
         utils.stamped_msg("Completed sending results", "Stopped")
     except talosError, e:
       utils.stamped_msg("Failed sending results", "Stopped")
@@ -508,7 +545,8 @@ def test_file(filename, to_screen):
   
 if __name__=='__main__':
   screen = False
-  optlist, args = getopt.getopt(sys.argv[1:], 'dns', ['debug', 'noisy', 'screen'])
+  amo = False
+  optlist, args = getopt.getopt(sys.argv[1:], 'dns', ['debug', 'noisy', 'screen', 'amo'])
   for o, a in optlist:
     if o in ('-d', "--debug"):
       print 'setting debug'
@@ -517,8 +555,10 @@ if __name__=='__main__':
       utils.setnoisy(1)
     if o in ('-s', "--screen"):
       screen = True
+    if o in ('-a', "--amo"):
+      amo = True
   # Read in each config file and run the tests on it.
   for arg in args:
     utils.debug("running test file " + arg)
-    test_file(arg, screen)
+    test_file(arg, screen, amo)
 

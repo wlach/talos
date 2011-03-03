@@ -28,7 +28,7 @@ class PerfConfigurator:
                   'branch', 'branchName', 'buildid', 'currentDate', 'browserWait',
                   'verbose', 'testDate', 'useId', 'resultsServer', 'resultsLink',
                   'activeTests', 'noChrome', 'fast', 'testPrefix', 'extension',
-                  'masterIniSubpath', 'test_timeout', 'symbolsPath'];
+                  'masterIniSubpath', 'test_timeout', 'symbolsPath', 'addonID', 'noShutdown'];
     masterIniSubpath = "application.ini"
 
     def _dumpConfiguration(self):
@@ -97,6 +97,9 @@ class PerfConfigurator:
             elif self.useId:
                 newline += '\n'
                 newline += 'testdate: "%s"\n' % self._getTimeFromBuildId()
+            if self.addonID:
+                newline += '\n'
+                newline += 'addon_id: "%s"\n' % self.addonID
             if self.branchName: 
                 newline += '\n'
                 newline += 'branch_name: %s\n' % self.branchName
@@ -130,6 +133,8 @@ class PerfConfigurator:
         #only change the browser_wait if the user has provided one
         if self.browserWait and ('browser_wait' in line):
             newline = 'browser_wait: ' + str(self.browserWait) + '\n'
+        if self.noShutdown and ('shutdown :' in line):
+            newline = line.replace('True', 'False')
         if testMode:
             #only do this if the user has provided a list of tests to turn on/off
             # otherwise, all tests are considered to be active
@@ -308,6 +313,14 @@ class TalosOptions(optparse.OptionParser):
                         action = "store", dest = "logFile",
                         help = "Local logfile to store the output from the browser in")
         defaults["logFile"] = "browser_output.txt"
+        self.add_option("--addonID",
+                        action = "store", dest = "addonID",
+                        help = "ID of the extension being tested")
+        defaults["addonID"] = ''
+        self.add_option("--noShutdown",
+                        action = "store_true", dest = "noShutdown",
+                        help = "Record time browser takes to shutdown after testing")
+        defaults["noShutdown"] = 'False'
 
         self.set_defaults(**defaults)
 
