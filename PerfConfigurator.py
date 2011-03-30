@@ -28,7 +28,8 @@ class PerfConfigurator:
                   'branch', 'branchName', 'buildid', 'currentDate', 'browserWait',
                   'verbose', 'testDate', 'useId', 'resultsServer', 'resultsLink',
                   'activeTests', 'noChrome', 'fast', 'testPrefix', 'extension',
-                  'masterIniSubpath', 'test_timeout', 'symbolsPath', 'addonID', 'noShutdown'];
+                  'masterIniSubpath', 'test_timeout', 'symbolsPath', 'addonID', 
+                  'noShutdown', 'extraPrefs'];
     masterIniSubpath = "application.ini"
 
     def _dumpConfiguration(self):
@@ -155,6 +156,16 @@ class PerfConfigurator:
             if self.noChrome: 
                 #if noChrome is True remove --tpchrome option 
                 newline = line.replace('-tpchrome ','')
+
+        if self.extraPrefs != [] and (re.match('^\s*preferences :\s*$', line)): 
+            newline = 'preferences :\n'
+            for v in self.extraPrefs:
+                thispref = v.split("=")
+                if len(thispref) < 2:
+                    print "Error: syntax error in --setPref=" + v
+                    sys.exit(1)
+                newline += '  %s: %s\n' % (thispref[0], thispref[1])
+            
         return printMe, newline
 
     def writeConfigFile(self):
@@ -321,6 +332,12 @@ class TalosOptions(optparse.OptionParser):
                         action = "store_true", dest = "noShutdown",
                         help = "Record time browser takes to shutdown after testing")
         defaults["noShutdown"] = 'False'
+
+        self.add_option("--setPref",
+                        action = "append", type = "string",
+                        dest = "extraPrefs", metavar = "PREF=VALUE",
+                        help = "defines an extra user preference")  
+        defaults["extraPrefs"] = []
 
         self.set_defaults(**defaults)
 

@@ -1,5 +1,5 @@
 // target for window.open()
-const KID_URL       = "child-window.html";
+var KID_URL         = "child-window.html";
 
 // formats final results
 const SERVER_URL    = "http://jrgm.mcom.com/cgi-bin/window-open-2.0/openreport.pl";
@@ -25,6 +25,9 @@ var AUTOCLOSE = 1;
 var KID_CHROME   = null;
 var SAVED_CHROME = null;
 
+// measure after receiving the mozafterpaint event
+var MOZ_AFTER_PAINT = 0;
+
 // URL options and correspnding vars.
 const options = [ [ "phase1", "PHASE_ONE", false ],
                   [ "phase2", "PHASE_TWO", false ],
@@ -32,6 +35,7 @@ const options = [ [ "phase1", "PHASE_ONE", false ],
                   [ "overlap", "OVERLAP_COUNT", false ],
                   [ "cycles", "CYCLES", false ],
                   [ "chrome", "KID_CHROME", true ],
+                  [ "mozafterpaint", "MOZ_AFTER_PAINT", false ],
                   [ "close", "AUTOCLOSE", false ] ];
 
 // Note: You can attach search options to the url for this file to control
@@ -42,7 +46,8 @@ const options = [ [ "phase1", "PHASE_ONE", false ],
 // On Win32, you must enclose the -chrome option in quotes in order pass funny Win32 shell
 // characters such as '&' or '|'!
 
-var opts = window.location.search.substring(1).split( '&' );
+var s = window.location.search.substring(1);
+var opts = s.replace("%26", "&").split('&');
 for ( opt in opts ) {
     for ( var i in options ) {
         if ( opts[opt].indexOf( options[i][0]+"=" ) == 0 ) {
@@ -237,11 +242,16 @@ function restoreChromeURL() {
 }
 
 function openWindow() {
+    if (MOZ_AFTER_PAINT == 1) {
+      KID_URL = "tpaint-window.html";
+    }
+
     startingTimes[currentIndex] = (new Date()).getTime();
     var path   = window.location.pathname.substring( 0, window.location.pathname.lastIndexOf('/') );
     var url    = window.location.protocol + "//" + 
                  window.location.hostname + path + "/" +
                  KID_URL;
+
     windowList[currentIndex] = window.open(url, currentIndex);
 }
 
