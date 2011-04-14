@@ -331,7 +331,7 @@ class TalosOptions(optparse.OptionParser):
         self.add_option("--noShutdown",
                         action = "store_true", dest = "noShutdown",
                         help = "Record time browser takes to shutdown after testing")
-        defaults["noShutdown"] = 'False'
+        defaults["noShutdown"] = False
 
         self.add_option("--setPref",
                         action = "append", type = "string",
