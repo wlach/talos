@@ -276,12 +276,14 @@ def send_to_graph(results_server, results_link, machine, date, browser_config, r
         links += process_Request(post_file.post_multipart(results_server, results_link, [("key", "value")], [("filename", "data_string", data_string)]))
         break
       except talosError, e:
-        times += 1
         msg = e.msg
-        time.sleep(wait_time)
-        wait_time += wait_time
+      except Exception, e:
+        msg = str(e)
+      times += 1
+      time.sleep(wait_time)
+      wait_time += wait_time
     if times == RETRIES:
-        raise talosError("Failed to send data %d times... quitting\n%s" % (RETRIES, msg))
+        raise talosError("Graph server unreachable (%d attempts)\n%s" % (RETRIES, msg))
     utils.stamped_msg("Transmitting test: " + testname, "Stopped")
 
   return links
@@ -414,7 +416,7 @@ def test_file(filename, to_screen, amo):
        results_link = yaml_config[item]
   if (results_link != results_server != ''):
     if not post_file.link_exists(results_server, results_link):
-      sys.exit(0)
+      print 'WARNING: graph server link does not exist'
   browser_config = {'preferences'  : yaml_config['preferences'],
                     'extensions'   : yaml_config['extensions'],
                     'browser_path' : yaml_config['browser_path'],
@@ -540,7 +542,11 @@ def test_file(filename, to_screen, amo):
         utils.stamped_msg("Completed sending results", "Stopped")
     except talosError, e:
       utils.stamped_msg("Failed sending results", "Stopped")
-      print 'FAIL: ' + e.msg.replace('\n', '\nRETURN:')
+      #failed to send results, just print to screen and then report graph server error
+      for test in tests:
+        testname = test['name']
+        send_to_csv(None, {testname : results[testname]})
+      print '\nFAIL: ' + e.msg.replace('\n', '\nRETURN:')
 
   
 if __name__=='__main__':

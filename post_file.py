@@ -29,9 +29,9 @@ def link_exists(host, selector):
         if errcode == 200:
             found = 1
         else:
-            print "FAIL: graph server Status %d %s : %s" % (errcode, errmsg, url)
+            print "WARNING: graph server Status %d %s : %s" % (errcode, errmsg, url)
     except Exception, e:
-        print "FAIL: graph server ", e.__class__,  e, url
+        print "WARNING: graph server ", e.__class__,  e, url
     return found
 
 def post_multipart(host, selector, fields, files):
@@ -58,11 +58,11 @@ def post_multipart(host, selector, fields, files):
       errcode, errmsg, headers = h.getreply()
       return h.file.read()
     except (httplib.HTTPException, error, herror, gaierror, timeout), e:
-      print "FAIL: graph server unreachable"
-      print "FAIL: " + str(e)
+      print "WARNING: graph server unreachable"
+      print "WARNING: " + str(e)
       raise
     except:
-      print "FAIL: graph server unreachable"
+      print "WARNING: graph server unreachable"
       raise
 
 def encode_multipart_formdata(fields, files):
