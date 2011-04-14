@@ -71,7 +71,7 @@ def zip_extractall(zipfile, rootdir):
             if not os.path.isdir(destdir):
                 os.makedirs(destdir)
             data = zipfile.read(name)
-            f = open(destfile, 'w')
+            f = open(destfile, 'wb')
             f.write(data)
             f.close()
 
