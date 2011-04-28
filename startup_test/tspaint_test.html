@@ -50,13 +50,29 @@ function painted() {
 
   var now = (new Date()).getTime();
   var startupTime = now - gBegin;
-  document.write('\n\nStartup time = ' + startupTime + ' ms<br>');
+  document.body.textContent = 'Startup time = ' + startupTime + ' ms';
   now = (new Date()).getTime();
   if (window.dump) {
-    dumpLog('__start_report' + startupTime + '__end_report\n\n' + '__startTimestamp' + now + '__endTimestamp\n');
+    dumpLog('__start_report' + startupTime + '__end_report\n\n');
   }
-  goQuitApplication();
-  window.close();
+
+  try {
+    netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
+    var consoleService = Components.classes['@mozilla.org/consoleservice;1'].getService(Components.interfaces.nsIConsoleService);
+    var messages = {}
+    consoleService.getMessageArray(messages, {});
+    for (var i = 0; i < messages.value.length; i++)
+      dumpLog(messages.value[i].message + '\n');
+  } catch(ex) { dumpLog(ex + '\n'); }
+
+  // Close window asynchronously, there might still be startup operations that still need to run
+  window.setTimeout(function() {
+    if (window.dump) {
+      dumpLog('__startTimestamp' + Date.now() + '__endTimestamp\n');
+    }
+    goQuitApplication();
+    window.close();
+  }, 0);
 }
 window.addEventListener("MozAfterPaint", painted, false);
 
