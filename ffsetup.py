@@ -143,32 +143,60 @@ class FFSetup(object):
                         addon_id = str(elem.getElementsByTagName('em:id')[0].firstChild.data)
                     elif elem.hasAttribute('em:id'):
                         addon_id = str(elem.getAttribute('em:id'))
+                else:
+                    if ((elem.hasAttribute('RDF:about')) and (elem.getAttribute('RDF:about') == 'urn:mozilla:install-manifest')):
+                        if elem.getElementsByTagName('NS1:id'):
+                            addon_id = str(elem.getElementsByTagName('NS1:id')[0].firstChild.data)
+                        elif elem.hasAttribute('NS1:id'):
+                            addon_id = str(elem.getAttribute('NS1:id'))
             return addon_id
+
+        def find_unpack(desc):
+            unpack = 'false'
+            for elem in desc:
+                if elem.getElementsByTagName('em:unpack'):
+                    unpack = str(elem.getElementsByTagName('em:unpack')[0].firstChild.data)
+                elif elem.hasAttribute('em:unpack'):
+                    unpack = str(elem.getAttribute('em:unpack'))
+                elif elem.getElementsByTagName('NS1:unpack'):
+                    unpack = str(elem.getElementsByTagName('NS1:unpack')[0].firstChild.data)
+                elif elem.hasAttribute('NS1:unpack'):
+                    unpack = str(elem.getAttribute('NS1:unpack'))
+            return unpack
 
         tmpdir = None
         addon_id = None
         tmpdir = tempfile.mkdtemp(suffix = "." + os.path.split(addon)[-1])
         zip_extractall(zipfile.ZipFile(addon), tmpdir)
-        addon = tmpdir
+        addonTmpPath = tmpdir
 
-        doc = minidom.parse(os.path.join(addon, 'install.rdf')) 
+        doc = minidom.parse(os.path.join(addonTmpPath, 'install.rdf')) 
         # description_element =
         # tree.find('.//{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description/')
 
         desc = doc.getElementsByTagName('Description')
         addon_id = find_id(desc)
+        unpack = find_unpack(desc)
         if not addon_id:
           desc = doc.getElementsByTagName('RDF:Description')
           addon_id = find_id(desc)
+          unpack = find_unpack(desc)
         
         if not addon_id: #bail out, we don't have an addon id
             raise talosError("no addon_id found for extension")
-                 
-        addon_path = os.path.join(profile_path, 'extensions', addon_id)
-        #if an old copy is already installed, remove it 
-        if os.path.isdir(addon_path): 
-            shutil.rmtree(addon_path, ignore_errors=True) 
-        shutil.move(addon, addon_path) 
+                
+        if (str.lower(unpack) == 'true'):  #install addon unpacked
+            addon_path = os.path.join(profile_path, 'extensions', addon_id)
+            #if an old copy is already installed, remove it 
+            if os.path.isdir(addon_path): 
+                shutil.rmtree(addon_path, ignore_errors=True) 
+            shutil.move(addonTmpPath, addon_path) 
+        else: #do not unpack addon
+            addon_file = os.path.join(profile_path, 'extensions', addon_id + '.xpi')
+            if os.path.isfile(addon_file): 
+                os.remove(addon_file) 
+            shutil.copy(addon, addon_file)
+            shutil.rmtree(addonTmpPath, ignore_errors=True)
 
     def CreateTempProfileDir(self, source_profile, prefs, extensions):
         """Creates a temporary profile directory from the source profile directory
