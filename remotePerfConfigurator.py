@@ -137,7 +137,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             localfilename = "remoteapp.ini"
             
             #we need a better OS detection method, but for now this is how we work on android
-            if (self.exePath == 'org.mozilla.fennec'):
+            if (self.exePath.startswith('org.mozilla.f')):
               remoteFile = '/data/data/' + self.exePath + '/' + self.masterIniSubpath            
             else:
               parts = self.exePath.split('/')

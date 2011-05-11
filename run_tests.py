@@ -340,8 +340,8 @@ def browserInfo(browser_config, devicemanager = None):
   appIniPath = os.path.join(os.path.dirname(browser_config['browser_path']), appIniFileName)
   if os.path.isfile(appIniPath) or devicemanager != None:
     if (devicemanager != None):
-      if (browser_config['browser_path'] is 'org.mozilla.fennec'):
-        remoteAppIni = '/data/data/org.mozilla.fennec/' + appIniFileName
+      if (browser_config['browser_path'].startswith('org.mozilla.f')):
+        remoteAppIni = '/data/data/' + browser_config['browser_path'] + '/' + appIniFileName
       else:
         remoteAppIni = browser_config['deviceroot'] + '/' + appIniFileName
       devicemanager.getFile(remoteAppIni, 'remoteapp.ini')
