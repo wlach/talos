@@ -344,7 +344,8 @@ def browserInfo(browser_config, devicemanager = None):
         remoteAppIni = '/data/data/' + browser_config['browser_path'] + '/' + appIniFileName
       else:
         remoteAppIni = browser_config['deviceroot'] + '/' + appIniFileName
-      devicemanager.getFile(remoteAppIni, 'remoteapp.ini')
+      if (not os.path.isfile('remoteapp.ini')):
+        devicemanager.getFile(remoteAppIni, 'remoteapp.ini')
       appIni = open('remoteapp.ini')
     else:
       appIni = open(appIniPath)

@@ -143,7 +143,8 @@ class remotePerfConfigurator(pc.PerfConfigurator):
               parts = self.exePath.split('/')
               remoteFile = '/'.join(parts[0:-1]) + '/' + self.masterIniSubpath
             
-            retVal = self.testAgent.getFile(remoteFile, localfilename)
+            if (not os.path.isfile(localfilename)):
+              retVal = self.testAgent.getFile(remoteFile, localfilename)
             master = open(localfilename)
         else:
             return pc.PerfConfigurator._getMasterIniContents(self)
