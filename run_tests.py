@@ -444,7 +444,8 @@ def test_file(filename, to_screen, amo):
                     'remote'             : yaml_config.get('remote', False),
                     'test_timeout'       : yaml_config.get('test_timeout', 1200),
                     'addon_id'           : yaml_config.get('addon_id', 'NULL'),
-                    'bcontroller_config' : yaml_config.get('bcontroller_config', 'bcontroller.yml')}
+                    'bcontroller_config' : yaml_config.get('bcontroller_config', 'bcontroller.yml'),
+                    'xperf_path'         : yaml_config.get('xperf_path', None)}
 
   #normalize paths to work accross platforms
   dm = None

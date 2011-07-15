@@ -132,8 +132,11 @@ MozillaFileLogger.getLogCallback = function() {
 // This is only used from chrome space by the reftest harness
 MozillaFileLogger.log = function(msg) {
   netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
-  if (MozillaFileLogger._foStream)
-    MozillaFileLogger._foStream.write(msg, msg.length);
+
+  try {
+    if (MozillaFileLogger._foStream)
+      MozillaFileLogger._foStream.write(msg, msg.length);
+  } catch(ex) {}
 }
 
 MozillaFileLogger.close = function() {

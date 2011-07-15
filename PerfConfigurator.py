@@ -29,7 +29,7 @@ class PerfConfigurator:
                   'verbose', 'testDate', 'useId', 'resultsServer', 'resultsLink',
                   'activeTests', 'noChrome', 'fast', 'testPrefix', 'extension',
                   'masterIniSubpath', 'test_timeout', 'symbolsPath', 'addonID', 
-                  'noShutdown', 'extraPrefs'];
+                  'noShutdown', 'extraPrefs', 'xperf_path'];
     masterIniSubpath = "application.ini"
 
     def _dumpConfiguration(self):
@@ -88,6 +88,8 @@ class PerfConfigurator:
             newline = 'test_timeout: ' + str(self.test_timeout) + '\n'
         if 'browser_path:' in line:
             newline = 'browser_path: ' + self.exePath + '\n'
+        if 'xperf_path:' in line:
+            newline = 'xperf_path: %s\n' % self.xperf_path
         if 'browser_log:' in line:
             newline = 'browser_log: ' + self.logFile + '\n'
         if 'title:' in line:
@@ -121,6 +123,7 @@ class PerfConfigurator:
                 lfile = parts[1].strip().strip("'")
                 lfile = os.path.abspath(lfile)
 
+            lfile = lfile.replace('\\', '\\\\')
             newline = '%s: %s\n' % (parts[0], lfile)
         if 'testbranch' in line:
             newline = 'branch: ' + self.branch
@@ -314,6 +317,11 @@ class TalosOptions(optparse.OptionParser):
                         action = "store", dest = "symbolsPath",
                         help = "Path to the symbols for the build we are testing")
         defaults["symbolsPath"] = ''
+
+        self.add_option("--xperf_path",
+                        action = "store", dest = "xperf_path",
+                        help = "Path to windows performance tool xperf.exe")
+        defaults["xperf_path"] = ''
 
         self.add_option("--test_timeout",
                         action = "store", type="int", dest = "test_timeout",

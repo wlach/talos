@@ -46,6 +46,7 @@ from utils import talosError
 import sys
 import utils
 import optparse
+import re
 
 defaults = {'endTime': -1,
             'returncode': -1,
@@ -59,7 +60,8 @@ defaults = {'endTime': -1,
             'host':  '',
             'deviceroot': '',
             'port': 20701,
-            'env': ''}
+            'env': '', 'xperf_path': None,
+            'xperf_providers': [], 'xperf_stackwalk': []}
 
 class BrowserWaiter(threading.Thread):
 
@@ -102,6 +104,29 @@ class BrowserWaiter(threading.Thread):
             self.returncode = 1
           else:
             self.returncode = 0
+    elif ((self.xperf_path is not None) and os.path.exists(self.xperf_path)):
+      csvname = 'etl_output.csv'
+      etlname = 'test.etl'
+
+      #start_xperf.py -x <path to xperf.exe> -p <providers> -s <stackwalk_vars> -e <xperf_output[.etl]>
+      os.system('python xtalos\\start_xperf.py -x %s -p %s -s %s -e %s' % 
+                (self.xperf_path,
+                 '+'.join(self.xperf_providers),
+                 '+'.join(self.xperf_stackwalk),
+                 etlname))        
+
+      self.returncode = os.system(self.command)
+
+      #stop_xperf.py -x <path to xperf.exe>
+      #etlparser.py -o <outputname[.csv]> -p <process_name (i.e. firefox.exe)> -x <path to xperf.exe> -e <xperf_output[.etl]>
+      os.system('xtalos\\stop_xperf.py -x %s' % (self.xperf_path))
+      parse_cmd = 'xtalos\\etlparser.py -o %s -p %s -x %s -e %s' % (csvname, self.process, self.xperf_path, etlname)
+      os.system(parse_cmd)
+      print "__xperf_data_begin__"
+      fhandle = open(csvname, 'r')
+      print fhandle.read()
+      fhandle.close()
+      print "__xperf_data_end__"
     else:    #blocking call to system, non-remote device
       self.returncode = os.system(self.command + " > " + self.browser_log) 
 
@@ -119,9 +144,15 @@ class BrowserWaiter(threading.Thread):
 class BrowserController:
 
   def __init__(self, options):
-    global ffprocess
+    self.deviceManager = None
     options['env'] = ','.join(['%s=%s' % (str(key), str(value))
                                for key, value in options.get('env', {}).items()])
+
+    if (options['xperf_path'] is not None and 
+        (options['xperf_path'].strip() == 'None' or 
+         options['xperf_path'].strip() == '')):
+      options['xperf_path'] = None
+
     self.options = options
     for key, value in defaults.items():
         setattr(self, key, options.get(key, value)) 

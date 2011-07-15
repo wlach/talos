@@ -80,6 +80,10 @@ class FFProcess(object):
 
     def GenerateBControllerCommandLine(self, command_line, browser_config, test_config):
         bcontroller_vars = ['command', 'child_process', 'process', 'browser_wait', 'test_timeout', 'browser_log']
+
+        if 'xperf_path' in browser_config:
+            bcontroller_vars.append('xperf_path')
+
         if (browser_config['webserver'] != 'localhost'):
             bcontroller_vars.extend(['host', 'port', 'deviceroot', 'env'])
 
@@ -87,6 +91,13 @@ class FFProcess(object):
         if 'url_mod' in test_config:
             browser_config['url_mod'] = test_config['url_mod']
             bcontroller_vars.append('url_mod')
+
+        if (('xperf_providers' in test_config) and 
+           ('xperf_stackwalk' in test_config)):
+            print "extending with xperf!"
+            browser_config['xperf_providers'] = test_config['xperf_providers']
+            browser_config['xperf_stackwalk'] = test_config['xperf_stackwalk']
+            bcontroller_vars.extend(['xperf_providers', 'xperf_stackwalk'])
 
         content = utils.writeConfigFile(browser_config, bcontroller_vars)
 
