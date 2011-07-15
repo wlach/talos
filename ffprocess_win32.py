@@ -82,11 +82,13 @@ class Win32Process(FFProcess):
         Args:
             pid: integer process id of the process to terminate.
         """
-
+        ret = ''
         PROCESS_TERMINATE = 1
         handle = win32api.OpenProcess(PROCESS_TERMINATE, False, pid)
         win32api.TerminateProcess(handle, -1)
         win32api.CloseHandle(handle)
+        ret = 'terminated with PROCESS_TERMINATE'
+        return ret
 
 
     def ProcessesWithNameExist(self, *process_names):
@@ -119,6 +121,7 @@ class Win32Process(FFProcess):
         Args:
             process_name: String or strings containing the process name, i.e. "firefox"
         """
+        result = ''
         for process_name in process_names:
             # Get all the process ids of running instances of this process, and terminate them.
             try:
@@ -126,10 +129,15 @@ class Win32Process(FFProcess):
                 win32pdh.EnumObjects(None, None, 0, 1)
                 pids = win32pdhutil.FindPerformanceAttributesByName(process_name, counter="ID Process")
                 for pid in pids:
-                    self.TerminateProcess(pid)
+                    ret = self.TerminateProcess(pid)
+                    if result and ret:
+                        result = result + ', '
+                    if ret:
+                        result = result + process_name + '(' + str(pid) + '): ' + ret 
             except:
                 # Might get an exception if there are no instances of the process running.
                 continue
+        return result
 
 
     def NonBlockingReadProcessOutput(self, handle):

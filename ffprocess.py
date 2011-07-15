@@ -54,58 +54,6 @@ class FFProcess(object):
     def __init__(self):
         pass
 
-    def RunProcessAndWaitForOutput(self, command, process_name, browser_wait, output_regex, timeout):
-        """Runs the given process and waits for the output that matches the given
-        regular expression.  Stops if the process exits early or times out.
-
-        Args:
-            command: String containing command to run
-            process_name: Name of the process to run, in case it has to be killed
-            browser_wait: Amount of time allowed for the browser to cleanly close
-            output_regex: Regular expression to check against each output line.
-                            If the output matches, the process is terminated and 
-                            the function returns.
-            timeout: Time to wait before terminating the process and returning
-
-        Returns:
-            A tuple (match, timedout) where match is the match of the regular 
-            expression, and timed out is true if the process timed out and 
-            false otherwise.
-        """
-
-        # Start the process
-        handle = launchProcess(command)
-
-        # Wait for it to print output, terminate, or time out.
-        time_elapsed = 0
-        output = ''
-        interval = 2 # Wait 2 seconds in between checks
-
-        while time_elapsed < timeout:
-            time.sleep(interval)
-            time_elapsed += interval
-
-            (bytes, current_output) = self.NonBlockingReadProcessOutput(handle)
-            output += current_output
-    
-            result = output_regex.search(output)
-            if result:
-                try:
-                    return_val = result.group(1)
-                    timer=0
-                    while ((process.poll() is None) and timer < browser_wait):
-                        time.sleep(1)
-                        timer+=1
-                    self.TerminateAllProcesses(browser_wait, process_name)
-                    return (return_val, False)
-                except IndexError:
-                    # Didn't really match
-                    pass
-
-        # Timed out.
-        self.TerminateAllProcesses(browser_wait, process_name)
-        return (None, True)
-
     def checkBrowserAlive(self, process_name):
         #is the browser actually up?
         return (self.ProcessesWithNameExist(process_name) and 
@@ -117,7 +65,9 @@ class FFProcess(object):
 
     def cleanupProcesses(self, process_name, child_process, browser_wait):
         #kill any remaining browser processes
-        self.TerminateAllProcesses(browser_wait, process_name, child_process, "crashreporter", "dwwin", "talkback")
+        #returns string of which process_names were terminated and with what signal
+        terminate_result = ''
+        terminate_result = self.TerminateAllProcesses(browser_wait, process_name, child_process, "crashreporter", "dwwin", "talkback")
         #check if anything is left behind
         if self.checkAllProcesses(process_name, child_process):
             #this is for windows machines.  when attempting to send kill messages to win processes the OS
@@ -126,3 +76,4 @@ class FFProcess(object):
             time.sleep(browser_wait)
             if self.checkAllProcesses(process_name, child_process):
                 raise talosError("failed to cleanup")
+        return terminate_result

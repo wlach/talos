@@ -42,29 +42,10 @@ import os
 import time
 import subprocess
 import threading
-import platform
-from ffprocess_linux import LinuxProcess
-from ffprocess_mac import MacProcess
-from ffprocess_win32 import Win32Process
 from utils import talosError
 import sys
 import getopt
 
-import stat
-
-if platform.system() == "Linux":
-    platform_type = 'linux_'
-    ffprocess = LinuxProcess()
-elif platform.system() in ("Windows", "Microsoft"):
-    import win32pdh
-    import win32api
-    import win32event
-    import win32con
-    platform_type = 'win_'
-    ffprocess = Win32Process()
-elif platform.system() == "Darwin":
-    platform_type = 'mac_'
-    ffprocess = MacProcess()
 
 class BrowserWaiter(threading.Thread):
 
@@ -81,7 +62,7 @@ class BrowserWaiter(threading.Thread):
 
   def run(self):
     if self.mod:
-      if (self.deviceManager.__class__.__name__ == "RemoteProcess"):
+      if (self.deviceManager): #working with a remote device
         if (self.mod == "str(int(time.time()*1000))"):
           curtime = self.deviceManager.getCurrentTime()
           if curtime is None:
@@ -90,10 +71,10 @@ class BrowserWaiter(threading.Thread):
             return
 
           self.command += curtime
-      else:
+      else: #non-remote device
         self.command = self.command + eval(self.mod)
 
-    if (self.deviceManager.__class__.__name__ == "RemoteProcess"):
+    if (self.deviceManager): #working with a remote device
       devroot = self.deviceManager.getDeviceRoot()
       if (devroot == None):
         self.returncode = 1
@@ -109,7 +90,7 @@ class BrowserWaiter(threading.Thread):
             self.returncode = 1
           else:
             self.returncode = 0
-    else:    #blocking call to system
+    else:    #blocking call to system, non-remote device
       self.returncode = os.system(self.command + " > " + self.log) 
 
     self.endTime = int(time.time()*1000)
@@ -127,7 +108,6 @@ class BrowserController:
 
   def __init__(self, command, mod, name, child_process, 
                timeout, log,  test_timeout, host='', port=20701, root='', env=''):
-    global ffprocess
     self.command = command
     self.mod = mod
     self.process_name = name
@@ -136,6 +116,7 @@ class BrowserController:
     self.log = log
     self.timeout=test_timeout
 
+    self.deviceManager = None
     self.host = host
     self.port = port
     self.root = root
@@ -143,23 +124,16 @@ class BrowserController:
 
     if (host <> ''):
       from ffprocess_remote import RemoteProcess
-      platform_type = 'win_' 
-      ffprocess = RemoteProcess(host, port, root)
+      self.deviceManager = RemoteProcess(host, port, root)
       if (self.env is not ''):
         self.command = ' "%s" %s' % (self.env, self.command)
 
-    self.ffprocess = ffprocess
-
   def run(self):
-    self.bwaiter = BrowserWaiter(self.command, self.log, self.timeout, self.mod, self.ffprocess)
+    self.bwaiter = BrowserWaiter(self.command, self.log, self.timeout, self.mod, self.deviceManager)
     noise = 0
     prev_size = 0
     while not self.bwaiter.hasTime():
       if noise > self.timeout: # check for frozen browser
-        try:
-          ffprocess.cleanupProcesses(self.process_name, self.child_process, self.browser_wait)
-        except talosError, te:
-          os.abort() #kill myself off because something horrible has happened
         os.chmod(self.log, 0777)
         results_file = open(self.log, "a")
         results_file.write("\n__FAILbrowser frozen__FAIL\n")

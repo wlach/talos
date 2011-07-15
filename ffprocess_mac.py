@@ -144,14 +144,18 @@ class MacProcess(FFProcess):
         Args:
             pid: integer process id of the process to terminate.
         """
+        ret = ''
         try:
             if self.ProcessesWithNameExist(str(pid)):
                 os.kill(pid, signal.SIGTERM)
                 time.sleep(timeout)
+                ret = 'terminated with SIGTERM'
             if self.ProcessesWithNameExist(str(pid)):
                     os.kill(pid, signal.SIGKILL)
+                    ret = 'terminated with SIGKILL'
         except OSError, (errno, strerror):
             print 'WARNING: failed os.kill: %s : %s' % (errno, strerror)
+        return ret
 
     def TerminateAllProcesses(self, timeout, *process_names):
         """Helper function to terminate all processes with the given process name
@@ -159,10 +163,17 @@ class MacProcess(FFProcess):
         Args:
             process_names: String or strings containing the process name, i.e. "firefox"
         """
+        result = ''
         for process_name in process_names:
             pids = self.GetPidsByName(process_name)
             for pid in pids:
-                self.TerminateProcess(pid, timeout)
+                ret = self.TerminateProcess(pid, timeout)
+                if result and ret:
+                    result = result + ', '
+                if ret:
+                    result = result + process_name + '(' + str(pid) + '): ' + ret 
+        return result
+
 
     def NonBlockingReadProcessOutput(self, handle):
         """Does a non-blocking read from the output of the process

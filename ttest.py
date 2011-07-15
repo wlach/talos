@@ -156,7 +156,10 @@ class TTest(object):
         # file into it.
         self._hostproc.removeDirectory(dir)
 
-    def checkForCrashes(self, browser_config, profile_dir):
+    def cleanupAndCheckForCrashes(self, browser_config, profile_dir):
+        cleanup_result = self._ffprocess.cleanupProcesses(browser_config['process'], 
+                                                          browser_config['child_process'], 
+                                                          browser_config['browser_wait']) 
         if platform.system() in ('Windows', 'Microsoft'):
             stackwalkpaths = ['win32', 'minidump_stackwalk.exe']
         elif platform.system() == 'Linux':
@@ -183,7 +186,11 @@ class TTest(object):
             found = True
 
         if found:
-            raise talosError("crash during run (stack found)")
+            if cleanup_result:
+                raise talosError("stack found after process termination (" + cleanup_result+ ")")
+            else:
+                raise talosError("crash during run (stack found)")
+
 
     def runTest(self, browser_config, test_config):
         """
@@ -316,7 +323,7 @@ class TTest(object):
 
                 startTime = -1
                 dumpResult = ""
-                #the main test loop, monitors counters and checks for browser ouptut
+                #the main test loop, monitors counters and checks for browser output
                 while total_time < timeout:
                     # Sleep for [resolution] seconds
                     time.sleep(resolution)
@@ -372,7 +379,9 @@ class TTest(object):
                         raise talosError("unrecognized output format")
   
                 time.sleep(browser_config['browser_wait']) 
-                #clean up the process
+                #clean up any stray browser processes
+                self.cleanupAndCheckForCrashes(browser_config, profile_dir)
+                #clean up the bcontroller process
                 timer = 0
                 while ((process.poll() is None) and timer < browser_config['browser_wait']):
                     time.sleep(1)
@@ -380,8 +389,6 @@ class TTest(object):
  
                 if test_config['shutdown']:
                     shutdown.append(endTime - startTime)
-
-                self.checkForCrashes(browser_config, profile_dir)
 
                 all_browser_results.append(browser_results)
                 all_counter_results.append(counter_results)
@@ -393,9 +400,7 @@ class TTest(object):
                     except:
                         raise talosError("error executing tail script: %s" % sys.exc_info()[0])
 
-            self._ffprocess.cleanupProcesses(browser_config['process'], browser_config['child_process'], browser_config['browser_wait']) 
             self.cleanupProfile(temp_dir)
-
             utils.restoreEnvironmentVars()
             if test_config['shutdown']:
                 all_counter_results.append({'shutdown' : shutdown})      
@@ -411,12 +416,9 @@ class TTest(object):
                     results_file.close()
                     utils.noisy(results_raw)
 
-                self._ffprocess.cleanupProcesses(browser_config['process'], browser_config['child_process'], 
-                                                browser_config['browser_wait'])
-
                 if profile_dir:
                     try:
-                        self.checkForCrashes(browser_config, profile_dir)
+                        self.cleanupAndCheckForCrashes(browser_config, profile_dir)
                     except talosError:
                         pass
 

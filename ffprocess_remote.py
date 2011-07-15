@@ -127,12 +127,17 @@ class RemoteProcess(FFProcess):
         Args:
           process_name: String or strings containing the process name, i.e. "firefox"
         """
+        result = ''
         for process_name in process_names:
             try:
                 self.testAgent.killProcess(process_name)
+                if result:
+                    result = result + ', '
+                result = result + process_name + ': terminated by testAgent.killProcess'
             except:
                 # Might get an exception if there are no instances of the process running.
                 continue
+        return result
 
 
     def NonBlockingReadProcessOutput(self, handle):
