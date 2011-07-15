@@ -136,15 +136,7 @@ class TTest(object):
         return profile_dir, temp_dir
 
     def initializeProfile(self, profile_dir, browser_config):
-        if not (self._ffsetup.InitializeNewProfile(browser_config['browser_path'], 
-                                                    browser_config['process'],
-                                                    browser_config['child_process'],
-                                                    browser_config['browser_wait'],
-                                                    browser_config['extra_args'], 
-                                                    profile_dir, 
-                                                    browser_config['init_url'],
-                                                    browser_config['browser_log'],
-                                                    browser_config['test_timeout'])):
+        if not self._ffsetup.InitializeNewProfile(profile_dir, browser_config):
             raise talosError("failed to initialize browser")
         time.sleep(browser_config['browser_wait'])
         if self._ffprocess.checkAllProcesses(browser_config['process'], browser_config['child_process']):
@@ -280,33 +272,12 @@ class TTest(object):
                                                                         url)
   
                 utils.debug("command line: " + command_line)
- 
-                b_log = browser_config['browser_log']
-                b_cmd = 'python bcontroller.py --command "%s"' % (command_line)
-                b_cmd += ' --child_process %s ' % (browser_config['child_process'])
-                b_cmd += ' --name %s ' % (browser_config['process'])
-                b_cmd += ' --timeout %d ' % (browser_config['browser_wait'])
-                b_cmd += ' --test_timeout %d ' % (int(browser_config['test_timeout']))
-                b_cmd += ' --log %s ' % (browser_config['browser_log'])
-                if 'url_mod' in test_config:
-                    b_cmd += ' --mod "%s" ' % (test_config['url_mod'])
 
+                b_log = browser_config['browser_log']
                 if (self.remote == True):
                     b_log = browser_config['deviceroot'] + '/' + browser_config['browser_log']
-                    b_cmd += ' --host "%s" ' % (browser_config['host'])
-                    b_cmd += ' --port "%s" ' % (browser_config['port'])
-                    b_cmd += ' --deviceRoot "%s" ' % (browser_config['deviceroot'])
-                    b_env = ''
-                    first = True
-                    for e in browser_config['env']:
-                      if (first == False):
-                        b_env += ','
-                      else:
-                        first = False
-                      b_env += str(e) + '=' + str(browser_config['env'][e])
-                    if (b_env is not ''):
-                      b_cmd += ' --env "%s" ' % (b_env)
 
+                b_cmd = self._ffprocess.GenerateBControllerCommandLine(command_line, browser_config, test_config)
                 process = subprocess.Popen(b_cmd, universal_newlines=True, shell=True, bufsize=0, env=os.environ)
   
                 #give browser a chance to open

@@ -267,41 +267,27 @@ class FFSetup(object):
         os.makedirs(destpath)
         zip_extractall(zipfile.ZipFile(bundle_path), destpath)
 
-    def InitializeNewProfile(self, browser_path, process, child_process, browser_wait, extra_args, profile_dir, init_url, log, test_timeout):
+    def InitializeNewProfile(self, profile_dir, browser_config):
         """Runs browser with the new profile directory, to negate any performance
             hit that could occur as a result of starting up with a new profile.  
             Also kills the "extra" browser that gets spawned the first time browser
             is run with a new profile.
 
         Args:
-            browser_path: String containing the path to the browser exe
+            browser_config: object containing all the browser_config options
             profile_dir: The full path to the profile directory to load
         """
         PROFILE_REGEX = re.compile('__metrics(.*)__metrics', re.DOTALL|re.MULTILINE)
-        command_line = self.ffprocess.GenerateBrowserCommandLine(browser_path, extra_args, profile_dir, init_url)
+        command_line = self.ffprocess.GenerateBrowserCommandLine(browser_config["browser_path"], 
+                                                                 browser_config["extra_args"], 
+                                                                 profile_dir, 
+                                                                 browser_config["init_url"])
 
-        b_cmd = 'python bcontroller.py --command "%s"' % (command_line)
-        b_cmd += " --name %s" % (process)
-        b_cmd += " --child_process %s" % (child_process)
-        b_cmd += " --timeout %d" % (browser_wait)
-        b_cmd += " --test_timeout %d" % (int(test_timeout))
-        b_cmd += " --log %s" % (log)
+        log = browser_config['browser_log']
+        if (browser_config['webserver'] != 'localhost'):
+            b_log = browser_config['deviceroot'] + '/' + browser_config['browser_log']
 
-        if (self._remoteWebServer <> 'localhost'):
-            b_cmd += ' --host %s' % (self._host)
-            b_cmd += ' --port %s' % (self._port)
-            b_cmd += ' --deviceRoot %s' % (self._deviceroot)
-            b_env = ''
-            first = True
-            for e in self._env:
-              if (first == False):
-                b_env += ','
-              else:
-                first = False
-              b_env += str(e) + '=' + str(self._env[e])
-            if (b_env is not ''):
-              b_cmd += ' --env "%s" ' % (b_env)
-
+        b_cmd = self.ffprocess.GenerateBControllerCommandLine(command_line, browser_config, {})
         process = subprocess.Popen(b_cmd, universal_newlines=True, shell=True, bufsize=0, env=os.environ)
 
         timeout = True

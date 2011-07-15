@@ -431,52 +431,20 @@ def test_file(filename, to_screen, amo):
                     'env'          : yaml_config['env'],
                     'dirs'         : yaml_config.get('dirs', {}),
                     'bundles'      : yaml_config.get('bundles', {}),
-                    'init_url'     : yaml_config['init_url']}
-
-  if 'child_process' in yaml_config:
-      browser_config['child_process'] = yaml_config['child_process']
-  else:
-      browser_config['child_process'] = 'plugin-container'
-  if 'branch_name' in yaml_config:
-      browser_config['branch_name'] = yaml_config['branch_name']
-  if 'test_name_extension' in yaml_config:
-      browser_config['test_name_extension'] = yaml_config['test_name_extension']
-  else:
-      browser_config['test_name_extension'] = ''
-
-  if 'sourcestamp' in yaml_config:
-      browser_config['sourcestamp'] = yaml_config['sourcestamp']
-  if 'repository' in yaml_config:
-      browser_config['repository'] = yaml_config['repository']
-
-  if 'deviceip' in yaml_config:
-      browser_config['host'] = yaml_config['deviceip']
-  else:
-      browser_config['host'] = ''
-  if 'deviceport' in yaml_config:
-      browser_config['port'] = yaml_config['deviceport']
-  else:
-      browser_config['port'] = ''
-  if 'webserver' in yaml_config:
-      browser_config['webserver'] = yaml_config['webserver']
-  else:
-      browser_config['webserver'] = ''
-  if 'deviceroot' in yaml_config:
-      browser_config['deviceroot'] = yaml_config['deviceroot']
-  else:
-      browser_config['deviceroot'] = ''
-  if 'remote' in yaml_config:
-      browser_config['remote'] = yaml_config['remote']
-  else:
-      browser_config['remote'] = False
-  if 'test_timeout' in yaml_config and yaml_config['test_timeout'] != None and int(yaml_config['test_timeout']) > 0:
-      browser_config['test_timeout'] = yaml_config['test_timeout']
-  else:
-      browser_config['test_timeout'] = 1200
-  if 'addon_id' in yaml_config:
-      browser_config['addon_id'] = yaml_config['addon_id']
-  else:
-      browser_config['addon_id'] = 'NULL'
+                    'init_url'     : yaml_config['init_url'],
+                    'child_process'      : yaml_config.get('child_process', 'plugin-container'),
+                    'branch_name'        : yaml_config.get('branch_name', ''),
+                    'test_name_extension': yaml_config.get('test_name_extension', ''),
+                    'sourcestamp'        : yaml_config.get('sourcestamp', 'NULL'),
+                    'repository'         : yaml_config.get('repository', 'NULL'),
+                    'host'               : yaml_config.get('deviceip', ''),
+                    'port'               : yaml_config.get('deviceport', ''),
+                    'webserver'          : yaml_config.get('webserver', ''),
+                    'deviceroot'         : yaml_config.get('deviceroot', ''),
+                    'remote'             : yaml_config.get('remote', False),
+                    'test_timeout'       : yaml_config.get('test_timeout', 1200),
+                    'addon_id'           : yaml_config.get('addon_id', 'NULL'),
+                    'bcontroller_config' : yaml_config.get('bcontroller_config', 'bcontroller.yml')}
 
   #normalize paths to work accross platforms
   dm = None

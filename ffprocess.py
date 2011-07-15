@@ -47,6 +47,7 @@ import re
 import time
 import subprocess
 from utils import talosError
+import utils
 
 class FFProcess(object):
     testAgent = None
@@ -76,4 +77,23 @@ class FFProcess(object):
             time.sleep(browser_wait)
             if self.checkAllProcesses(process_name, child_process):
                 raise talosError("failed to cleanup")
+
+    def GenerateBControllerCommandLine(self, command_line, browser_config, test_config):
+        bcontroller_vars = ['command', 'child_process', 'process', 'browser_wait', 'test_timeout', 'browser_log']
+        if (browser_config['webserver'] != 'localhost'):
+            bcontroller_vars.extend(['host', 'port', 'deviceroot', 'env'])
+
+        browser_config['command'] = command_line
+        if 'url_mod' in test_config:
+            browser_config['url_mod'] = test_config['url_mod']
+            bcontroller_vars.append('url_mod')
+
+        content = utils.writeConfigFile(browser_config, bcontroller_vars)
+
+        fhandle = open(browser_config['bcontroller_config'], "w")
+        fhandle.write(content)
+        fhandle.close()
+
+        return 'python bcontroller.py --configFile %s' % (browser_config['bcontroller_config'])
+
         return terminate_result

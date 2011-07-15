@@ -44,26 +44,38 @@ import subprocess
 import threading
 from utils import talosError
 import sys
-import getopt
+import utils
+import optparse
 
+defaults = {'endTime': -1,
+            'returncode': -1,
+            'command': '',
+            'browser_log': '',
+            'url_mod': '',
+            'test_timeout': 1200,
+            'browser_wait': -1,
+            'child_process': 'plugin-container',
+            'process': 'firefox',
+            'host':  '',
+            'deviceroot': '',
+            'port': 20701,
+            'env': ''}
 
 class BrowserWaiter(threading.Thread):
 
-  def __init__(self, command, log, timeout, mod, deviceManager = None):
-     self.command = command
-     self.log = log
-     self.mod = mod
-     self.endTime = -1
-     self.returncode = -1
-     self.timeout = timeout
-     self.deviceManager = deviceManager
-     threading.Thread.__init__(self)
-     self.start()
+  def __init__(self, deviceManager = None, **options):
+      self.options = options
+      self.deviceManager = deviceManager
+      for key, value in defaults.items():
+          setattr(self, key, options.get(key, value))
+
+      threading.Thread.__init__(self)
+      self.start()
 
   def run(self):
-    if self.mod:
+    if self.url_mod:
       if (self.deviceManager): #working with a remote device
-        if (self.mod == "str(int(time.time()*1000))"):
+        if (self.url_mod == "str(int(time.time()*1000))"):
           curtime = self.deviceManager.getCurrentTime()
           if curtime is None:
             self.returncode = 1
@@ -72,26 +84,26 @@ class BrowserWaiter(threading.Thread):
 
           self.command += curtime
       else: #non-remote device
-        self.command = self.command + eval(self.mod)
+        self.command = self.command + eval(self.url_mod)
 
     if (self.deviceManager): #working with a remote device
       devroot = self.deviceManager.getDeviceRoot()
       if (devroot == None):
         self.returncode = 1
       else:
-        remoteLog = devroot + '/' + self.log.split('/')[-1]
-        retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=self.timeout)
+        remoteLog = devroot + '/' + self.browser_log.split('/')[-1]
+        retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=self.test_timeout)
         if retVal <> None:
-          self.deviceManager.getFile(retVal, self.log)
+          self.deviceManager.getFile(retVal, self.browser_log)
           self.returncode = 0
         else:
-          data = self.deviceManager.getFile(remoteLog, self.log)
+          data = self.deviceManager.getFile(remoteLog, self.browser_log)
           if (data == ''):
             self.returncode = 1
           else:
             self.returncode = 0
     else:    #blocking call to system, non-remote device
-      self.returncode = os.system(self.command + " > " + self.log) 
+      self.returncode = os.system(self.command + " > " + self.browser_log) 
 
     self.endTime = int(time.time()*1000)
 
@@ -106,43 +118,35 @@ class BrowserWaiter(threading.Thread):
 
 class BrowserController:
 
-  def __init__(self, command, mod, name, child_process, 
-               timeout, log,  test_timeout, host='', port=20701, root='', env=''):
-    self.command = command
-    self.mod = mod
-    self.process_name = name
-    self.child_process = child_process
-    self.browser_wait = timeout
-    self.log = log
-    self.timeout=test_timeout
+  def __init__(self, options):
+    global ffprocess
+    options['env'] = ','.join(['%s=%s' % (str(key), str(value))
+                               for key, value in options.get('env', {}).items()])
+    self.options = options
+    for key, value in defaults.items():
+        setattr(self, key, options.get(key, value)) 
 
-    self.deviceManager = None
-    self.host = host
-    self.port = port
-    self.root = root
-    self.env = env
-
-    if (host <> ''):
+    if (self.host):
       from ffprocess_remote import RemoteProcess
-      self.deviceManager = RemoteProcess(host, port, root)
-      if (self.env is not ''):
+      self.deviceManager = RemoteProcess(self.host, self.port, self.deviceroot)
+      if self.env:
         self.command = ' "%s" %s' % (self.env, self.command)
 
   def run(self):
-    self.bwaiter = BrowserWaiter(self.command, self.log, self.timeout, self.mod, self.deviceManager)
+    self.bwaiter = BrowserWaiter(self.deviceManager, **self.options)
     noise = 0
     prev_size = 0
     while not self.bwaiter.hasTime():
-      if noise > self.timeout: # check for frozen browser
-        os.chmod(self.log, 0777)
-        results_file = open(self.log, "a")
+      if noise > self.test_timeout: # check for frozen browser
+        os.chmod(self.browser_log, 0777)
+        results_file = open(self.browser_log, "a")
         results_file.write("\n__FAILbrowser frozen__FAIL\n")
         results_file.close()
         return
       time.sleep(1)
       try:
-        open(self.log, "r").close() #HACK FOR WINDOWS: refresh the file information
-        size = os.path.getsize(self.log)
+        open(self.browser_log, "r").close() #HACK FOR WINDOWS: refresh the file information
+        size = os.path.getsize(self.browser_log)
       except:
         size = 0
 
@@ -152,7 +156,7 @@ class BrowserController:
       else:
         noise += 1
 
-    results_file = open(self.log, "a")
+    results_file = open(self.browser_log, "a")
     if self.bwaiter.getReturn() != 0:  #the browser shutdown, but not cleanly
       results_file.write("\n__FAILbrowser non-zero return code (%d)__FAIL\n" % self.bwaiter.getReturn())
       results_file.close()
@@ -161,58 +165,35 @@ class BrowserController:
     results_file.close()
     return
 
+class BControllerOptions(optparse.OptionParser):
+    """Parses BController commandline options."""
+    def __init__(self, **kwargs):
+        optparse.OptionParser.__init__(self, **kwargs)
+        defaults = {}
+
+        self.add_option("-f", "--configFile",
+                        action = "store", dest = "configFile",
+                        help = "path to a yaml config file for bcontroller")
+        defaults["configFile"] = ''
 
 def main(argv=None):
+    parser = BControllerOptions()
+    options, args = parser.parse_args()
 
-   command = ""
-   name = "firefox" #default
-   child_process = "plugin-container" #default
-   timeout = ""
-   log = ""
-   mod = ""
-   host = ""
-   deviceRoot = ""
-   port = 20701
-   test_timeout = 1200 #no output from the browser in 20 minutes = failure
-   env = ""
+    if not options.configFile:
+        print >> sys.stderr, "FAIL: bcontroller.py requires a --configFile parameter\n"
+        return
 
-   if argv is None:
-        argv = sys.argv
-   opts, args = getopt.getopt(argv[1:], "c:t:n:p:l:m:h:r:o:d", ["command=", "timeout=", "name=", "child_process=", 
-                                                              "log=", "mod=", "host=", "deviceRoot=", "port=", 
-                                                              "test_timeout=", "env="])
+    options = utils.readConfigFile(options.configFile)
 
-   # option processing
-   for option, value in opts:
-     if option in ("-c", "--command"):
-       command = value
-     if option in ("-t", "--timeout"):
-       timeout = int(value)
-     if option in ("--test_timeout",):
-       test_timeout = int(value)
-     if option in ("-n", "--name"):
-       name = value
-     if option in ("-p", "--child_process"):
-       child_process = value
-     if option in ("-l", "--log"):
-       log = value
-     if option in ("-m", "--mod"):
-       mod = value
-     if option in ("-h", "--host"):
-       host = value
-     if option in ("-r", "--deviceRoot"):
-       deviceRoot = value
-     if option in ("-o", "--port"):
-       port = value
-     if option in ("--env",):
-       env = value
+    if (len(options.get('command', '')) < 3 or \
+        options.get('browser_wait', -1) <= 0 or \
+        len(options.get('browser_log', '')) < 3):
+      print >> sys.stderr, "FAIL: incorrect parameters to bcontroller\n"
+      return
 
-   if command and timeout and log:
-     bcontroller = BrowserController(command, mod, name, child_process, timeout, log, test_timeout, host, port, deviceRoot, env)
-     bcontroller.run()
-   else:
-     print "\nFAIL: no command\n"
-     sys.stdout.flush()
+    bcontroller = BrowserController(options)
+    bcontroller.run()
 
 if __name__ == "__main__":
     sys.exit(main())

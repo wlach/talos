@@ -39,6 +39,8 @@
 import os
 import time
 import sys
+import yaml
+
 DEBUG = 0
 NOISY = 0
 START_TIME = 0
@@ -125,3 +127,19 @@ class talosError(Exception):
     self.msg = msg
   def __str__(self):
     return repr(self.msg)
+
+def writeConfigFile(obj, vals):
+  retVal = ""
+  if (vals == []):
+    vals = obj.keys()
+
+  for opt in vals:
+    retVal += "%s: %s\n" % (opt, obj[opt])
+
+  return retVal
+
+def readConfigFile(filename):
+  config_file = open(filename, 'r')
+  yaml_config = yaml.load(config_file)
+  config_file.close()
+  return yaml_config
