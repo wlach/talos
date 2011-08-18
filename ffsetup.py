@@ -131,6 +131,12 @@ class FFSetup(object):
            # Clint Talbert <ctalbert@mozilla.com>
            # Henrik Skupin <hskupin@mozilla.com>
         """
+        def getText(nodelist):
+            rc = []
+            for node in nodelist:
+                if node.nodeType == node.TEXT_NODE:
+                    rc.append(node.data)
+            return ''.join(rc)
         def find_id(desc):
             addon_id = None
             for elem in desc:
@@ -140,13 +146,13 @@ class FFSetup(object):
                         #remove targetApplication nodes, they contain id's we aren't interested in
                         elem.removeChild(app)
                     if elem.getElementsByTagName('em:id'):
-                        addon_id = str(elem.getElementsByTagName('em:id')[0].firstChild.data)
+                        addon_id = getText(elem.getElementsByTagName('em:id'))
                     elif elem.hasAttribute('em:id'):
                         addon_id = str(elem.getAttribute('em:id'))
                 else:
                     if ((elem.hasAttribute('RDF:about')) and (elem.getAttribute('RDF:about') == 'urn:mozilla:install-manifest')):
                         if elem.getElementsByTagName('NS1:id'):
-                            addon_id = str(elem.getElementsByTagName('NS1:id')[0].firstChild.data)
+                            addon_id = getText(elem.getElementsByTagName('NS1:id'))
                         elif elem.hasAttribute('NS1:id'):
                             addon_id = str(elem.getAttribute('NS1:id'))
             return addon_id
@@ -155,13 +161,15 @@ class FFSetup(object):
             unpack = 'false'
             for elem in desc:
                 if elem.getElementsByTagName('em:unpack'):
-                    unpack = str(elem.getElementsByTagName('em:unpack')[0].firstChild.data)
+                    unpack = getText(elem.getElementsByTagName('em:unpack'))
                 elif elem.hasAttribute('em:unpack'):
                     unpack = str(elem.getAttribute('em:unpack'))
                 elif elem.getElementsByTagName('NS1:unpack'):
-                    unpack = str(elem.getElementsByTagName('NS1:unpack')[0].firstChild.data)
+                    unpack = getText(elem.getElementsByTagName('NS1:unpack'))
                 elif elem.hasAttribute('NS1:unpack'):
                     unpack = str(elem.getAttribute('NS1:unpack'))
+                if not unpack:  #no value in attribute/elements, defaults to false
+                    unpack = 'false'
             return unpack
 
         tmpdir = None
