@@ -427,6 +427,7 @@ def test_file(filename, to_screen, amo):
                     'process'      : yaml_config['process'],
                     'extra_args'   : yaml_config['extra_args'],
                     'branch'       : yaml_config['branch'],
+                    'title'        : yaml_config.get('title', ''),
                     'buildid'      : yaml_config['buildid'],
                     'env'          : yaml_config['env'],
                     'dirs'         : yaml_config.get('dirs', {}),

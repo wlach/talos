@@ -48,7 +48,7 @@ def main():
     print "Unable to verify options"
     sys.exit(1)
 
-  xperf_cmd = '%s -stop' % (options.xperf_tool)
+  xperf_cmd = '%s -stop' % (options.xperf_path)
 
   if (options.debug_level >= xtalos.DEBUG_INFO):
     print "executing '%s'" % xperf_cmd

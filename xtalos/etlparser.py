@@ -42,6 +42,11 @@ import optparse
 import sys
 import xtalos
 
+#required for the autolog stuff
+import yaml
+import time
+from mozautolog import RESTfulAutologTestGroup
+
 EVENTNAME_INDEX = 0
 DISKBYTES_COL = "Size"
 FNAME_COL = "FileName"
@@ -49,6 +54,62 @@ FNAME_COL = "FileName"
 gHeaders = {}
 def addHeader(eventType, data):
   gHeaders[eventType] = data
+
+class XPerfAutoLog(object):
+
+  def __init__(self, filename = None):
+    self.testGroup = None
+    if filename != None:
+      config_file = open(filename, 'r')
+      self.yaml_config = yaml.load(config_file)
+      config_file.close()
+      self.autolog_init()
+
+  def autolog_init(self):
+    testos = 'win7' #currently we only run xperf on windows 7
+    testname = self.yaml_config.get('testname', '')
+    testplatform = 'win32' #currently we only run xperf on win32
+    if testname == '':
+      return
+  
+    self.testGroup = RESTfulAutologTestGroup(
+      testgroup = testname,
+      os = testos,
+      platform = testplatform,
+      machine = self.yaml_config['title'],
+      starttime = int(time.time()),
+      builder = '%s_%s-opt_test-%s' % (self.yaml_config['title'], os, testname),
+      restserver = 'http://10.2.76.100/autologserver'
+    )
+  
+    self.testGroup.set_primary_product(
+      tree = self.yaml_config['repository'].split('/')[-1], 
+      buildtype = 'opt', #we only run talos on opt builds
+      buildid = self.yaml_config['buildid'],
+      revision = self.yaml_config['sourcestamp'],
+    )
+
+  def addData(self, filename, readcount, readbytes, writecount, writebytes):
+    if (self.testGroup == None):
+      self.autolog_init()
+
+    if (self.testGroup == None):
+      return
+      
+    self.testGroup.add_perf_data(
+      test = self.yaml_config['testname'],
+      type = 'diskIO',
+      name = filename[filename.rfind('\\') + 1:],
+      reads = readcount,
+      read_bytes = readbytes,
+      writes = writecount,
+      write_bytes = writebytes
+    )
+  
+  def post(self):
+    if (self.testGroup != None):
+      self.testGroup.submit() 
+
 
 def filterOutHeader(data):
   retVal = []
@@ -173,7 +234,7 @@ def etl2csv(options):
   
   processing_options = []
   xperf_cmd = '%s -i %s -o %s.csv %s' % \
-              (options.xperf_tool,
+              (options.xperf_path,
                options.etl_filename,
                options.etl_filename,
                " -a ".join(processing_options))
@@ -210,9 +271,20 @@ def main():
   else:
     print header
     
+  alog = None  
+  if options.configFile:
+    alog = XPerfAutoLog(options.configFile)
+  
   for row in files:
     output = "%s, %s, %s, %s, %s" % \
         (row,
+         files[row]['DiskReadCount'],
+         files[row]['DiskReadBytes'],
+         files[row]['DiskWriteCount'],
+         files[row]['DiskWriteBytes'])
+         
+    if alog:
+      alog.addData(row,
          files[row]['DiskReadCount'],
          files[row]['DiskReadBytes'],
          files[row]['DiskWriteCount'],
@@ -222,6 +294,9 @@ def main():
       outputFile.write(output + "\n")
     else:
       print output
+
+  if alog:
+    alog.post()
 
   if options.outputFile:
     outputFile.close()

@@ -83,6 +83,10 @@ class FFProcess(object):
 
         if 'xperf_path' in browser_config:
             bcontroller_vars.append('xperf_path')
+            bcontroller_vars.extend(['buildid', 'sourcestamp', 'repository', 'title'])
+            if 'name' in test_config:
+              bcontroller_vars.append('testname')
+              browser_config['testname'] = test_config['name']
 
         if (browser_config['webserver'] != 'localhost'):
             bcontroller_vars.extend(['host', 'port', 'deviceroot', 'env'])

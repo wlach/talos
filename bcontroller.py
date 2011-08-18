@@ -61,7 +61,8 @@ defaults = {'endTime': -1,
             'deviceroot': '',
             'port': 20701,
             'env': '', 'xperf_path': None,
-            'xperf_providers': [], 'xperf_stackwalk': []}
+            'xperf_providers': [], 'xperf_stackwalk': [],
+            'configFile': 'bcontroller.yml'}
 
 class BrowserWaiter(threading.Thread):
 
@@ -108,19 +109,16 @@ class BrowserWaiter(threading.Thread):
       csvname = 'etl_output.csv'
       etlname = 'test.etl'
 
-      #start_xperf.py -x <path to xperf.exe> -p <providers> -s <stackwalk_vars> -e <xperf_output[.etl]>
-      os.system('python xtalos\\start_xperf.py -x %s -p %s -s %s -e %s' % 
-                (self.xperf_path,
-                 '+'.join(self.xperf_providers),
-                 '+'.join(self.xperf_stackwalk),
-                 etlname))        
+      #start_xperf.py -c <configfile> -e <etl filename>
+      os.system('python xtalos\\start_xperf.py -c %s -e %s' % (self.configFile, etlname))
 
       self.returncode = os.system(self.command)
 
       #stop_xperf.py -x <path to xperf.exe>
-      #etlparser.py -o <outputname[.csv]> -p <process_name (i.e. firefox.exe)> -x <path to xperf.exe> -e <xperf_output[.etl]>
-      os.system('xtalos\\stop_xperf.py -x %s' % (self.xperf_path))
-      parse_cmd = 'xtalos\\etlparser.py -o %s -p %s -x %s -e %s' % (csvname, self.process, self.xperf_path, etlname)
+      #etlparser.py -o <outputname[.csv]> -p <process_name (i.e. firefox.exe)> -c <path to configfile> -e <xperf_output[.etl]>
+      os.system('python xtalos\\stop_xperf.py -x %s' % (self.xperf_path))
+      parse_cmd = 'python xtalos\\etlparser.py -o %s -p %s -e %s -c %s' % (
+                   csvname, self.process, etlname, self.configFile)
       os.system(parse_cmd)
       print "__xperf_data_begin__"
       fhandle = open(csvname, 'r')
@@ -215,7 +213,9 @@ def main(argv=None):
         print >> sys.stderr, "FAIL: bcontroller.py requires a --configFile parameter\n"
         return
 
+    configFile = options.configFile
     options = utils.readConfigFile(options.configFile)
+    options['configFile'] = configFile
 
     if (len(options.get('command', '')) < 3 or \
         options.get('browser_wait', -1) <= 0 or \

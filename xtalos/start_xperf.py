@@ -48,13 +48,18 @@ def main():
     print "Unable to verify options"
     sys.exit(1)
 
-  xperf_providers = ['PROC_THREAD', 'LOADER', 'HARD_FAULTS', 'FILENAME', 'FILE_IO', 'FILE_IO_INIT']
-  xperf_stackwalk = ['FileRead', 'FileWrite', 'FileFlush']
+  if not options.xperf_providers:
+    print "No xperf providers options given"
+    sys.exit(1)
+
+  if not options.xperf_stackwalk:
+    print "No xperf stackwalk options given"
+    sys.exit(1)
 
   xperf_cmd = '%s -on %s -stackwalk %s -MaxBuffers 1024 -BufferSize 1024 -f %s' % \
-              (options.xperf_tool,
-               '+'.join(xperf_providers),
-               '+'.join(xperf_stackwalk),
+              (options.xperf_path,
+               '+'.join(options.xperf_providers),
+               '+'.join(options.xperf_stackwalk),
                options.etl_filename)
 
   if (options.debug_level >= xtalos.DEBUG_INFO):

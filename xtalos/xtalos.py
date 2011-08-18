@@ -38,6 +38,7 @@
 import os
 import optparse
 import sys
+import yaml
 
 DEBUG_CRITICAL =0
 DEBUG_ERROR =   1
@@ -56,9 +57,9 @@ class XtalosOptions(optparse.OptionParser):
     defaults["processName"] = "firefox.exe"
 
     self.add_option("-x", "--xperf",
-                    action = "store", dest = "xperf_tool",
+                    action = "store", dest = "xperf_path",
                     help = "location of xperf tool, defaults to 'xperf.exe'")
-    defaults["xperf_tool"] = "xperf.exe"
+    defaults["xperf_path"] = "xperf.exe"
 
     self.add_option("-e", "--etl_filename",
                     action = "store", dest = "etl_filename",
@@ -73,7 +74,27 @@ class XtalosOptions(optparse.OptionParser):
     self.add_option("-o", "--output-file",
                     action="store", dest = "outputFile",
                     help = "Filename to write all output to, default is stdout")
-    defaults["outputFile"] = None
+    defaults["outputFile"] = ''
+
+    self.add_option("-r", "--providers",
+                    action="store", dest = "xperf_providers",
+                    help = "xperf providers to collect data from")
+    defaults["xperf_providers"] = ''
+
+    self.add_option("-s", "--stackwalk",
+                    action="store", dest = "xperf_stackwalk",
+                    help = "xperf stackwalk options to collect")
+    defaults["xperf_stackwalk"] = ''
+
+    self.add_option("--PidNewProcess",
+                    action="store", dest = "PidNewProcess",
+                    help = "process to launch")
+    defaults["PidNewProcess"] = ''
+
+    self.add_option("-c", "--config-file",
+                    action="store", dest = "configFile",
+                    help = "Name of the yaml config file with test run and browser information")
+    defaults["configFile"] = ''
 
     self.set_defaults(**defaults)
 
@@ -81,9 +102,18 @@ class XtalosOptions(optparse.OptionParser):
     self.set_usage(usage)
 
   def verifyOptions(self, options):
-    options.xperf_tool = os.path.abspath(options.xperf_tool)
-    if (os.path.exists(options.xperf_tool) == False):
-      print "ERROR: unable to verify '%s' exists" % (options.xperf_tool)
+    if options.configFile:
+      config_file = open(options.configFile, 'r')
+      yaml_config = yaml.load(config_file)
+      config_file.close()
+      
+      for obj in options.__dict__.keys():
+        options.__dict__[obj] = yaml_config.get(obj, options.__dict__[obj])
+
+  
+    options.xperf_path = os.path.abspath(options.xperf_path)
+    if (os.path.exists(options.xperf_path) == False):
+      print "ERROR: unable to verify '%s' exists" % (options.xperf_path)
       return None
 
     return options
