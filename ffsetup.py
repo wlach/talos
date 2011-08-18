@@ -146,13 +146,13 @@ class FFSetup(object):
                         #remove targetApplication nodes, they contain id's we aren't interested in
                         elem.removeChild(app)
                     if elem.getElementsByTagName('em:id'):
-                        addon_id = getText(elem.getElementsByTagName('em:id'))
+                        addon_id = getText(elem.getElementsByTagName('em:id')[0].childNodes)
                     elif elem.hasAttribute('em:id'):
                         addon_id = str(elem.getAttribute('em:id'))
                 else:
                     if ((elem.hasAttribute('RDF:about')) and (elem.getAttribute('RDF:about') == 'urn:mozilla:install-manifest')):
                         if elem.getElementsByTagName('NS1:id'):
-                            addon_id = getText(elem.getElementsByTagName('NS1:id'))
+                            addon_id = getText(elem.getElementsByTagName('NS1:id')[0].childNodes)
                         elif elem.hasAttribute('NS1:id'):
                             addon_id = str(elem.getAttribute('NS1:id'))
             return addon_id
@@ -161,11 +161,11 @@ class FFSetup(object):
             unpack = 'false'
             for elem in desc:
                 if elem.getElementsByTagName('em:unpack'):
-                    unpack = getText(elem.getElementsByTagName('em:unpack'))
+                    unpack = getText(elem.getElementsByTagName('em:unpack')[0].childNodes)
                 elif elem.hasAttribute('em:unpack'):
                     unpack = str(elem.getAttribute('em:unpack'))
                 elif elem.getElementsByTagName('NS1:unpack'):
-                    unpack = getText(elem.getElementsByTagName('NS1:unpack'))
+                    unpack = getText(elem.getElementsByTagName('NS1:unpack')[0].childNodes)
                 elif elem.hasAttribute('NS1:unpack'):
                     unpack = str(elem.getAttribute('NS1:unpack'))
                 if not unpack:  #no value in attribute/elements, defaults to false
