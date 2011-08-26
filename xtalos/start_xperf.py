@@ -56,7 +56,7 @@ def main():
     print "No xperf stackwalk options given"
     sys.exit(1)
 
-  xperf_cmd = '%s -on %s -stackwalk %s -MaxBuffers 1024 -BufferSize 1024 -f %s' % \
+  xperf_cmd = '"%s" -on %s -stackwalk %s -MaxBuffers 1024 -BufferSize 1024 -f %s' % \
               (options.xperf_path,
                '+'.join(options.xperf_providers),
                '+'.join(options.xperf_stackwalk),

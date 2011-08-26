@@ -233,7 +233,7 @@ def etl2csv(options):
   """
   
   processing_options = []
-  xperf_cmd = '%s -i %s -o %s.csv %s' % \
+  xperf_cmd = '"%s" -i %s -o %s.csv %s' % \
               (options.xperf_path,
                options.etl_filename,
                options.etl_filename,

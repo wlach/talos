@@ -116,7 +116,7 @@ class BrowserWaiter(threading.Thread):
 
       #stop_xperf.py -x <path to xperf.exe>
       #etlparser.py -o <outputname[.csv]> -p <process_name (i.e. firefox.exe)> -c <path to configfile> -e <xperf_output[.etl]>
-      os.system('python xtalos\\stop_xperf.py -x %s' % (self.xperf_path))
+      os.system('python xtalos\\stop_xperf.py -x "%s"' % (self.xperf_path))
       parse_cmd = 'python xtalos\\etlparser.py -o %s -p %s -e %s -c %s' % (
                    csvname, self.process, etlname, self.configFile)
       os.system(parse_cmd)
