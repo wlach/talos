@@ -136,7 +136,7 @@ class FFSetup(object):
             for node in nodelist:
                 if node.nodeType == node.TEXT_NODE:
                     rc.append(node.data)
-            return ''.join(rc)
+            return str(''.join(rc))
         def find_id(desc):
             addon_id = None
             for elem in desc:
