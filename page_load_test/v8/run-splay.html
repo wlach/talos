@@ -50,7 +50,7 @@ function SetupStart(name) {
 
 function PrintResult(name, result) {
   var dur = Date.now() - startTime;
-  tpRecordTime(Math.round(result));
+  tpRecordTime(Math.round(result), start);
   print(name + ': ' + result);
 }
 

@@ -22,7 +22,7 @@ function AllInOne()
   }
   l+=10;
   if (l==100) {
-    tpRecordTime(Date.now() - startTime);
+    tpRecordTime(Date.now() - startTime, startTime);
   }
   else
     setTimeout("AllInOne()", 0);

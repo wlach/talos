@@ -29,7 +29,7 @@ class PerfConfigurator:
                   'verbose', 'testDate', 'useId', 'resultsServer', 'resultsLink',
                   'activeTests', 'noChrome', 'fast', 'testPrefix', 'extension',
                   'masterIniSubpath', 'test_timeout', 'symbolsPath', 'addonID', 
-                  'noShutdown', 'extraPrefs', 'xperf_path'];
+                  'noShutdown', 'extraPrefs', 'xperf_path', 'mozAfterPaint'];
     masterIniSubpath = "application.ini"
 
     def _dumpConfiguration(self):
@@ -106,9 +106,16 @@ class PerfConfigurator:
             if self.branchName: 
                 newline += '\n'
                 newline += 'branch_name: %s\n' % self.branchName
-            if self.noChrome:
+            if self.noChrome and not self.mozAfterPaint:
                 newline += '\n'
                 newline += "test_name_extension: _nochrome\n"
+            elif self.noChrome and self.mozAfterPaint:
+                newline += '\n'
+                newline += "test_name_extension: _nochrome_paint\n"
+            elif not self.noChrome and self.mozAfterPaint:
+                newline += '\n'
+                newline += "test_name_extension: _paint\n"
+
             if self.symbolsPath:
                 newline += '\nsymbols_path: %s\n' % self.symbolsPath
         if self.extension and ('extensions : {}' in line):
@@ -156,6 +163,13 @@ class PerfConfigurator:
                             newline = newline.replace('tp', 'tp_fast')
                         if self.testPrefix:
                             newline = newline.replace(test, self.testPrefix + '_' + test)
+
+            #HACK: we are depending on -tpchrome to be in the cli options in order to run mozafterpaint
+            if self.mozAfterPaint and (line.find('-tpchrome') > 0): 
+                #if mozAfterPaint is True add -tpmozafterpaint option 
+                line = line.replace('-tpchrome ','-tpchrome -tpmozafterpaint ')
+                newline = line
+
             if self.noChrome: 
                 #if noChrome is True remove --tpchrome option 
                 newline = line.replace('-tpchrome ','')
@@ -176,6 +190,14 @@ class PerfConfigurator:
             configFile = open(path.join(self.configPath, self.sampleConfig))
         except:
             raise Configuration("unable to find %s, please check your filename for --sampleConfig" % path.join(self.configPath, self.sampleConfig))
+
+        if (self.mozAfterPaint):
+            found = False
+            for p in self.extraPrefs: 
+                if p[0] == 'dom.send_after_paint_to_content':
+                    found = True
+            if not found:
+                self.extraPrefs.append('dom.send_after_paint_to_content=true')
 
         destination = open(self.outputName, "w")
         config = configFile.readlines()
@@ -297,6 +319,11 @@ class TalosOptions(optparse.OptionParser):
                         action = "store_true", dest = "noChrome",
                         help = "do not run tests as chrome")
         defaults["noChrome"] = False
+
+        self.add_option("--mozAfterPaint",
+                        action = "store_true", dest = "mozAfterPaint",
+                        help = "wait for MozAfterPaint event before recording the time")
+        defaults["mozAfterPaint"] = False
 
         self.add_option("--testPrefix",
                         action = "store", dest = "testPrefix",

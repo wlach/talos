@@ -15,7 +15,7 @@ function animateLayers() {
     setTimeout("animateLayers()", 0);
   }
   else
-    tpRecordTime(Date.now() - startTime);
+    tpRecordTime(Date.now() - startTime, startTime);
 }
 
 function mzDhtmlStart()

@@ -21,7 +21,7 @@ function Step()
   }
   l += 5;
   if (l == 100) {
-    tpRecordTime(Date.now() - startTime);
+    tpRecordTime(Date.now() - startTime, startTime);
   }
   else
     setTimeout("Step()", 0);

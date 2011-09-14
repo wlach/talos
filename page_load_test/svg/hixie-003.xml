@@ -66,8 +66,8 @@
       var end = new Date();
       var elapsed = (end - start) / 1000;
       t.firstChild.data = 'Test completed in ' + elapsed.toFixed(2) + 's.';
-      if (window.tpRecordTime) window.tpRecordTime(end - start);
-      if (parent.reportResults) parent.reportResults(end - start);
+      if (window.tpRecordTime) window.tpRecordTime(end - start, start);
+      if (parent.reportResults) parent.reportResults(end - start, start);
     }
   }
   window.setTimeout(runTest, delay);
