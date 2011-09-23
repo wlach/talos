@@ -18,7 +18,13 @@ class remotePerfConfigurator(pc.PerfConfigurator):
     def _setupRemote(self):
         import devicemanager
         try:
-            self.testAgent = devicemanager.DeviceManager(self.remoteDevice, self.remotePort)
+            if (self.remotePort == -1):
+                import devicemanagerADB
+                self.testAgent = devicemanagerADB.DeviceManagerADB(self.remoteDevice, self.remotePort)
+            else:
+                import devicemanagerSUT
+                self.testAgent = devicemanagerSUT.DeviceManagerSUT(self.remoteDevice, self.remotePort)
+
             self.deviceRoot = self.testAgent.getDeviceRoot()
         except:
             raise DMError("Unable to connect to remote device '%s'" % self.remoteDevice)
@@ -95,7 +101,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             if ('.html' in part):
                 newline += 'http://' + self.webServer + '/' + part
             elif ('.manifest' in part):
-                newline += self.buildRemoteManifest(part)
+                newline += self.buildRemoteManifest(part) + ' '
             elif ('winopen.xul' in part):
                 self.buildRemoteTwinopen()
                 newline += 'file://' + self.deviceRoot + '/talos/' + part
@@ -125,7 +131,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             newHandle.write(line.replace('localhost', self.webServer) + "\n")
         newHandle.close()
 
-        remoteName += '/' + os.path.basename(manifestName) + ' '
+        remoteName += '/' + os.path.basename(manifestName)
         if self.testAgent.pushFile(manifestName + '.remote', remoteName) == False:
             raise pc.Configuration("Unable to copy remote manifest file " 
                                 + manifestName + ".remote to " + remoteName)
@@ -166,7 +172,7 @@ class remoteTalosOptions(pc.TalosOptions):
 
         self.add_option("-p", "--remotePort", action="store",
                     type="int", dest = "remotePort",
-                    help = "port the SUTAgent uses (defaults to 20701")
+                    help = "port the SUTAgent uses (defaults to 20701, -1 assumes you are using ADB")
         defaults["remotePort"] = 20701
 
         self.add_option("--webServer", action="store",

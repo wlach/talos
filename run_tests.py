@@ -452,7 +452,13 @@ def test_file(filename, to_screen, amo):
   dm = None
   if (browser_config['remote'] == True):
     import devicemanager
-    dm = devicemanager.DeviceManager(browser_config['host'], browser_config['port'])
+    if (browser_config['port'] == -1):
+        import devicemanagerADB
+        dm = devicemanagerADB.DeviceManagerADB(browser_config['host'], browser_config['port'])
+    else:
+        import devicemanagerSUT
+        dm = devicemanagerSUT.DeviceManagerSUT(browser_config['host'], browser_config['port'])
+
   browser_config['browser_path'] = os.path.normpath(browser_config['browser_path'])
   for dir in browser_config['dirs']:
     browser_config['dirs'][dir] = os.path.normpath(browser_config['dirs'][dir])

@@ -66,7 +66,12 @@ class RemoteProcess(FFProcess):
             self.dirSlash = "/"
 
     def setupRemote(self, host = '', port = DEFAULT_PORT):
-        self.testAgent = devicemanager.DeviceManager(host, port)
+        if (port == -1):
+            import devicemanagerADB
+            self.testAgent = devicemanagerADB.DeviceManagerADB(host, port)
+        else:
+            import devicemanagerSUT
+            self.testAgent = devicemanagerSUT.DeviceManagerSUT(host, port)
 
     def GetRunningProcesses(self):
         current_procs = []
