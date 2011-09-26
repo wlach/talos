@@ -7,7 +7,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
     def __init__(self, options):
         self.__dict__.update(options.__dict__)
         self._remote = False
-        if (self.remoteDevice <> ''):
+        if (self.remoteDevice <> '' or self.remotePort == -1):
             self._setupRemote()
             options.deviceRoot = self.deviceRoot
 
@@ -167,12 +167,12 @@ class remoteTalosOptions(pc.TalosOptions):
 
         self.add_option("-r", "--remoteDevice", action="store",
                     type = "string", dest = "remoteDevice",
-                    help = "Device IP of the SUTAgent")
+                    help = "Device IP (when using SUTAgent)")
         defaults["remoteDevice"] = ''
 
         self.add_option("-p", "--remotePort", action="store",
                     type="int", dest = "remotePort",
-                    help = "port the SUTAgent uses (defaults to 20701, -1 assumes you are using ADB")
+                    help = "SUTAgent port (defaults to 20701, specify -1 to use ADB)")
         defaults["remotePort"] = 20701
 
         self.add_option("--webServer", action="store",
@@ -199,6 +199,10 @@ def main(argv=None):
     parser = remoteTalosOptions()
     options, args = parser.parse_args()
 
+    if len(args) > 0:
+        print "ERROR: Configurator does not take command line arguments, only options (arguments were: %s)" % (",".join(args))
+        return 2
+
     try:
         options = parser.verifyOptions(options)
     except Configuration, err:
@@ -208,7 +212,7 @@ def main(argv=None):
     try:
         configurator = remotePerfConfigurator(options)
     except:
-        print "Unable to connect to remote device"
+        print "Unable to connect to remote device '%s'" % options.remoteDevice
         return 2
 
     try:
