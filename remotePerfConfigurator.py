@@ -16,7 +16,6 @@ class remotePerfConfigurator(pc.PerfConfigurator):
         pc.PerfConfigurator.attributes += ['remoteDevice', 'remotePort', 'webServer', 'deviceRoot']
 
     def _setupRemote(self):
-        import devicemanager
         try:
             if (self.remotePort == -1):
                 import devicemanagerADB
@@ -27,10 +26,10 @@ class remotePerfConfigurator(pc.PerfConfigurator):
 
             self.deviceRoot = self.testAgent.getDeviceRoot()
         except:
-            raise DMError("Unable to connect to remote device '%s'" % self.remoteDevice)
+            raise Configuration("Unable to connect to remote device '%s'" % self.remoteDevice)
 
         if (self.deviceRoot is None):
-            raise DMError("Unable to connect to remote device '%s'" % self.remoteDevice)
+            raise Configuration("Unable to connect to remote device '%s'" % self.remoteDevice)
 
         self._remote = True
 
@@ -83,8 +82,8 @@ class remotePerfConfigurator(pc.PerfConfigurator):
         talosRoot = self.deviceRoot + '/talos/'
         for file in files:
             if self.testAgent.pushFile(file, talosRoot + file) == False:
-                raise pc.Configuration("Unable to copy twinopen file " 
-                                      + file + " to " + talosRoot + file)
+                raise Configuration("Unable to copy twinopen file "
+                                    + file + " to " + talosRoot + file)
 
     def convertUrlToRemote(self, line):
         """
@@ -133,7 +132,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
 
         remoteName += '/' + os.path.basename(manifestName)
         if self.testAgent.pushFile(manifestName + '.remote', remoteName) == False:
-            raise pc.Configuration("Unable to copy remote manifest file " 
+            raise Configuration("Unable to copy remote manifest file "
                                 + manifestName + ".remote to " + remoteName)
         return remoteName
 
@@ -148,9 +147,16 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             else:
               parts = self.exePath.split('/')
               remoteFile = '/'.join(parts[0:-1]) + '/' + self.masterIniSubpath
-            
             if (not os.path.isfile(localfilename)):
-              retVal = self.testAgent.getFile(remoteFile, localfilename)
+              filecontents = self.testAgent.getFile(remoteFile, localfilename)
+              if not filecontents:
+                  raise Configuration("Unable to copy master ini file from "
+                                      "device - either it doesn't exist yet "
+                                      "(have you run fennec at least once?) "
+                                      "or you don't have permissions to get it "
+                                      "(workaround: extract it from apk locally)")
+              return fileContents.split('\n')
+
             master = open(localfilename)
         else:
             return pc.PerfConfigurator._getMasterIniContents(self)
@@ -192,7 +198,7 @@ class remoteTalosOptions(pc.TalosOptions):
         #webServer can be used without remoteDevice, but is required when using remoteDevice
         if (options.remoteDevice != '' or options.deviceRoot != ''):
             if (options.webServer == 'localhost'  or options.remoteDevice == ''):
-                raise Configuration("ERROR: When running Talos on a remote device, you need to provide a webServer and optionally a remotePort")
+                raise Configuration("When running Talos on a remote device, you need to provide a webServer and optionally a remotePort")
         return options
 
 def main(argv=None):
@@ -203,23 +209,17 @@ def main(argv=None):
         print "ERROR: Configurator does not take command line arguments, only options (arguments were: %s)" % (",".join(args))
         return 2
 
+    progname = sys.argv[0].split("/")[-1]
     try:
         options = parser.verifyOptions(options)
-    except Configuration, err:
-        print err.msg
-        return 2
-
-    try:
         configurator = remotePerfConfigurator(options)
-    except:
-        print "Unable to connect to remote device '%s'" % options.remoteDevice
-        return 2
-
-    try:
         configurator.writeConfigFile()
-    except pc.Configuration, err:
-        print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
-        return 5
+    except Configuration, err:
+        print >> sys.stderr, progname + ": " + str(err.msg)
+        return 2
+    except:
+        print >> sys.stderr, progname + ": " + "Unknown error"
+
     return 0
     
 if __name__ == "__main__":

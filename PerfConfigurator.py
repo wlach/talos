@@ -53,6 +53,8 @@ class PerfConfigurator:
     
     def _getCurrentBuildId(self):
         masterContents = self._getMasterIniContents()
+        if not masterContents:
+            raise Configuration("Could not get BuildID: master ini file empty or does not exist")
 
         reBuildid = re.compile('BuildID\s*=\s*(\d{10}|\d{12})')
         for line in masterContents:
