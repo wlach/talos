@@ -98,15 +98,15 @@ class RemoteProcess(FFProcess):
         return cmd
   
 
-    def ProcessesWithNameExist(self, *process_names):
-        """Returns true if there are any processes running with the
-           given name.  Useful to check whether a Browser process is still running
+    def ProcessesWithNames(self, *process_names):
+        """Returns a list of processes running with the given name(s).
+        Useful to check whether a Browser process is still running
 
         Args:
-          process_name: String or strings containing the process name, i.e. "firefox"
+            process_names: String or strings containing process names, i.e. "firefox"
 
         Returns:
-          True if any processes with that name are running, False otherwise.
+            An array with a list of processes in the list which are running
         """
 
         # refresh list of processes
@@ -114,16 +114,18 @@ class RemoteProcess(FFProcess):
         if (data == None):
             return False
 
-        for process_name in process_names: 
+        processes_with_names = []
+        for process_name in process_names:
             try:
                 procre = re.compile(".*" + process_name + ".*")
                 for line in data:
                     if (procre.match(line[1])):
-                        return True
+                        processes_with_names.append(process_name)
+                        continue
             except:
                 # Might get an exception if there are no instances of the process running.
                 continue
-        return False
+        return processes_with_names
   
 
     def TerminateAllProcesses(self, *process_names):

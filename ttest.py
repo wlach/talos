@@ -214,10 +214,11 @@ class TTest(object):
         profile_dir = None
 
         try:
-            if self._ffprocess.checkAllProcesses(browser_config['process'], browser_config['child_process']):
+            running_processes = self._ffprocess.checkAllProcesses(browser_config['process'], browser_config['child_process'])
+            if running_processes:
                 msg = " already running before testing started (unclean system)"
                 utils.debug(browser_config['process'] + msg)
-                raise talosError("system not clean")
+                raise talosError("Found processes still running: %s. Please close them before running talos." % ", ".join(running_processes))
 
             for bundlename in browser_config['bundles']:
                 self._ffsetup.InstallBundleInBrowser(browser_config['browser_path'],

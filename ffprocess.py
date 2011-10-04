@@ -57,12 +57,12 @@ class FFProcess(object):
 
     def checkBrowserAlive(self, process_name):
         #is the browser actually up?
-        return (self.ProcessesWithNameExist(process_name) and 
-                not self.ProcessesWithNameExist("crashreporter", "talkback", "dwwin"))
+        return (self.ProcessesWithNames(process_name) and
+                not self.ProcessesWithNames("crashreporter", "talkback", "dwwin"))
 
     def checkAllProcesses(self, process_name, child_process):
         #is anything browser related active?
-        return self.ProcessesWithNameExist(process_name, child_process, "crashreporter", "talkback", "dwwin")
+        return self.ProcessesWithNames(process_name, child_process, "crashreporter", "talkback", "dwwin")
 
     def cleanupProcesses(self, process_name, child_process, browser_wait):
         #kill any remaining browser processes
