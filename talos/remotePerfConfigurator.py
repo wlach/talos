@@ -13,7 +13,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
 
         #this depends on buildID which requires querying the device
         pc.PerfConfigurator.__init__(self, options)
-        pc.PerfConfigurator.attributes += ['remoteDevice', 'remotePort', 'deviceRoot']
+        pc.PerfConfigurator.attributes += ['remoteDevice', 'remotePort', 'deviceRoot', 'videoCapture']
 
     def _setupRemote(self):
         try:
@@ -44,6 +44,8 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             newline = 'deviceroot: %s\n' % self.deviceRoot
         if 'deviceport:' in line:
             newline = 'deviceport: %s\n' % self.remotePort
+        if 'video_capture:' in line:
+            newline = 'video_capture: %s\n' % self.videoCapture
         if 'remote:' in line:
             newline = 'remote: %s\n' % self._remote
         if 'talos.logfile:' in line:
@@ -165,6 +167,11 @@ class remoteTalosOptions(pc.TalosOptions):
                     type = "string", dest = "deviceRoot",
                     help = "path on the device that will hold files and the profile")
         defaults["deviceRoot"] = ''
+
+        self.add_option("--videoCapture", action="store_true",
+                        dest = "videoCapture",
+                        help="capture results of talos run to video")
+        defaults["videoCapture"] = False
 
         defaults["sampleConfig"] = 'remote.config'
         self.set_defaults(**defaults)

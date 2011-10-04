@@ -452,7 +452,8 @@ def test_file(filename, to_screen, amo):
                     'addon_id'           : yaml_config.get('addon_id', 'NULL'),
                     'bcontroller_config' : yaml_config.get('bcontroller_config', 'bcontroller.yml'),
                     'xperf_path'         : yaml_config.get('xperf_path', None),
-                    'develop'            : yaml_config.get('develop', False)}
+                    'develop'            : yaml_config.get('develop', False),
+                    'video_capture'      : yaml_config.get('video_capture', False) }
 
   #normalize paths to work accross platforms
   dm = None
