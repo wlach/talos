@@ -451,7 +451,8 @@ def test_file(filename, to_screen, amo):
                     'test_timeout'       : yaml_config.get('test_timeout', 1200),
                     'addon_id'           : yaml_config.get('addon_id', 'NULL'),
                     'bcontroller_config' : yaml_config.get('bcontroller_config', 'bcontroller.yml'),
-                    'xperf_path'         : yaml_config.get('xperf_path', None)}
+                    'xperf_path'         : yaml_config.get('xperf_path', None),
+                    'video_capture'      : yaml_config.get('video_capture', False) }
 
   #normalize paths to work accross platforms
   dm = None

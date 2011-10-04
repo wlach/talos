@@ -37,6 +37,7 @@
 # ***** END LICENSE BLOCK *****
 
 __author__ = 'anodelman@mozilla.com (Alice Nodelman)'
+CAPTURE_DIR = 'captures'
 
 import os
 import time
@@ -47,6 +48,8 @@ import sys
 import utils
 import optparse
 import re
+import eideticker
+import datetime
 
 defaults = {'endTime': -1,
             'returncode': -1,
@@ -60,7 +63,9 @@ defaults = {'endTime': -1,
             'host':  '',
             'deviceroot': '',
             'port': 20701,
-            'env': '', 'xperf_path': None,
+            'env': '',
+            'video_capture': False,
+            'xperf_path': None,
             'xperf_providers': [], 'xperf_stackwalk': [],
             'configFile': 'bcontroller.yml'}
 
@@ -96,7 +101,16 @@ class BrowserWaiter(threading.Thread):
         self.returncode = 1
       else:
         remoteLog = devroot + '/' + self.browser_log.split('/')[-1]
+        captureController = None
+        if self.video_capture:
+            captureController = eideticker.CaptureController()
+            captureController.launch(os.path.join(CAPTURE_DIR, datetime.datetime.now().isoformat()))
+
         retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=self.test_timeout)
+
+        if self.video_capture:
+            captureController.terminate()
+
         if retVal <> None:
           self.deviceManager.getFile(retVal, self.browser_log)
           self.returncode = 0
