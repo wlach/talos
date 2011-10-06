@@ -48,7 +48,7 @@ import sys
 import utils
 import optparse
 import re
-import eideticker
+import videocapture
 import datetime
 
 defaults = {'endTime': -1,
@@ -103,7 +103,7 @@ class BrowserWaiter(threading.Thread):
         remoteLog = devroot + '/' + self.browser_log.split('/')[-1]
         captureController = None
         if self.video_capture:
-            captureController = eideticker.CaptureController()
+            captureController = videocapture.CaptureController()
             captureController.launch(os.path.join(CAPTURE_DIR, datetime.datetime.now().isoformat()))
 
         retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=self.test_timeout)
