@@ -24,12 +24,37 @@ import optparse
 defaultTitle = "qm-pxp01"
 
 class PerfConfigurator:
-    attributes = ['exePath', 'configPath', 'sampleConfig', 'outputName', 'title',
-                  'branch', 'branchName', 'buildid', 'currentDate', 'browserWait',
-                  'verbose', 'testDate', 'useId', 'resultsServer', 'resultsLink',
-                  'activeTests', 'noChrome', 'fast', 'testPrefix', 'extension',
-                  'masterIniSubpath', 'test_timeout', 'symbolsPath', 'addonID', 
-                  'noShutdown', 'extraPrefs', 'xperf_path', 'mozAfterPaint'];
+    attributes = [
+        'activeTests',
+        'addonID',
+        'branch',
+        'branchName',
+        'browserWait',
+        'buildid',
+        'configPath',
+        'currentDate',
+        'cycles',
+        'exePath',
+        'extension',
+        'extraPrefs',
+        'fast',
+        'masterIniSubpath',
+        'mozAfterPaint',
+        'noChrome',
+        'noShutdown',
+        'outputName',
+        'resultsLink',
+        'resultsServer',
+        'sampleConfig',
+        'symbolsPath',
+        'testDate',
+        'testPrefix',
+        'test_timeout',
+        'title',
+        'useId',
+        'verbose',
+        'xperf_path',
+        ];
     masterIniSubpath = "application.ini"
 
     def _dumpConfiguration(self):
@@ -175,6 +200,9 @@ class PerfConfigurator:
             if self.noChrome: 
                 #if noChrome is True remove --tpchrome option 
                 newline = line.replace('-tpchrome ','')
+
+            if 'cycles :' in line:
+                newline = '  cycles : %s\n' % self.cycles
 
         if self.extraPrefs != [] and (re.match('^\s*preferences :\s*$', line)): 
             newline = 'preferences :\n'
@@ -336,6 +364,11 @@ class TalosOptions(optparse.OptionParser):
                         action = "store", dest = "extension",
                         help = "Extension to install while running")
         defaults["extension"] = ''
+
+        self.add_option("--cycles",
+                        action = "store", dest = "cycles",
+                        help = "Number of cycles to run tests")
+        defaults["cycles"] = 10
     
         self.add_option("--fast",
                         action = "store_true", dest = "fast",
