@@ -74,11 +74,11 @@ class TTest(object):
     platform_type = ''
 
     # Regular expression for getting results from most tests
-    RESULTS_REGEX = re.compile('__start_report(.*?)__end_report.*?__startTimestamp(.*?)__endTimestamp.*?__startSecondTimestamp(.*?)__endSecondTimestamp',
+    RESULTS_REGEX = re.compile('__start_report(.*?)__end_report.*?__startTimestamp(.*?)__endTimestamp.*?__startBeforeLaunchTimestamp(.*?)__endBeforeLaunchTimestamp.*?__startAfterTerminationTimestamp(.*?)__endAfterTerminationTimestamp',
                       re.DOTALL | re.MULTILINE)
     # Regular expression to get stats for page load test (Tp) - 
     #should go away once data passing is standardized
-    RESULTS_TP_REGEX = re.compile('__start_tp_report(.*?)__end_tp_report.*?__startTimestamp(.*?)__endTimestamp.*?__startSecondTimestamp(.*?)__endSecondTimestamp',
+    RESULTS_TP_REGEX = re.compile('__start_tp_report(.*?)__end_tp_report.*?__startTimestamp(.*?)__endTimestamp.*?__startBeforeLaunchTimestamp(.*?)__endBeforeLaunchTimestamp.*?__startAfterTerminationTimestamp(.*?)__endAfterTerminationTimestamp',
                       re.DOTALL | re.MULTILINE)
     RESULTS_REGEX_FAIL = re.compile('__FAIL(.*?)__FAIL', re.DOTALL|re.MULTILINE)
 
@@ -343,14 +343,14 @@ class TTest(object):
                     if match:
                         browser_results += match.group(1)
                         startTime = int(match.group(2))
-                        endTime = int(match.group(3))
+                        endTime = int(match.group(4))
                         format = "tsformat"
                     #TODO: this a stop gap until all of the tests start outputting the same format
                     elif tpmatch:
                         match = tpmatch
                         browser_results += match.group(1)
                         startTime = int(match.group(2))
-                        endTime = int(match.group(3))
+                        endTime = int(match.group(4))
                         format = "tpformat"
                     elif failmatch:
                         match = failmatch
