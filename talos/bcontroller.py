@@ -48,7 +48,6 @@ import sys
 import utils
 import optparse
 import re
-import videocapture
 import datetime
 
 defaults = {'endTime': -1,
@@ -101,15 +100,47 @@ class BrowserWaiter(threading.Thread):
         self.returncode = 1
       else:
         remoteLog = devroot + '/' + self.browser_log.split('/')[-1]
-        captureController = None
+
+        retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog)
+
+        # ridiculous bolt-on behaviour for video capture. very temporary
         if self.video_capture:
+            import videocapture
+            import jsbridge
+
             captureController = videocapture.CaptureController()
             captureController.launch(os.path.join(CAPTURE_DIR, datetime.datetime.now().isoformat()))
 
-        retVal = self.deviceManager.launchProcess(self.command, outputFile=remoteLog, timeout=self.test_timeout)
+            back_channel, bridge = jsbridge.wait_and_create_network('127.0.0.1', 24241)
+            back_channel.timeout = bridge.timeout = 5
 
-        if self.video_capture:
-            captureController.terminate()
+            is_page_loaded = is_animation_finished = False
+
+            def page_loaded(obj):
+                global is_page_loaded
+                is_page_loaded = True
+
+                def animation_finished(obj):
+                    global is_animation_finished
+                    is_animation_finished = True
+
+                back_channel.add_listener(page_loaded, eventType='Eideticker.PageLoaded')
+                back_channel.add_listener(animation_finished, eventType='Eideticker.AnimationFinished')
+
+                while not is_page_loaded:
+                    back_channel.handle_read()
+                    time.sleep(0.1)
+
+                eideticker = jsbridge.JSObject(bridge, "Components.utils.import('resource://eideticker/modules/eideticker.js')")
+                eideticker.startAnimation()
+
+                while not is_animation_finished:
+                    back_channel.handle_read()
+                    time.sleep(0.1)
+
+                captureController.terminate()
+
+        self.deviceManager.waitProcess(self.command, timeout=self.test_timeout)
 
         if retVal <> None:
           self.deviceManager.getFile(retVal, self.browser_log)

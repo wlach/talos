@@ -193,14 +193,17 @@ class RemoteProcess(FFProcess):
             return fileData
         return data
 
-    def launchProcess(self, cmd, outputFile = "process.txt", timeout = -1):
+    def launchProcess(self, cmd, outputFile = "process.txt"):
         if (outputFile == "process.txt"):
             outputFile = self.rootdir + self.dirSlash + "process.txt"
             cmd += " > " + outputFile
         if (self.testAgent.fireProcess(cmd) is None):
             return None
         handle = outputFile
-  
+
+        return handle
+
+    def waitProcess(self, cmd, timeout = -1):
         timed_out = True
         if (timeout > 0):
             total_time = 0
@@ -213,8 +216,6 @@ class RemoteProcess(FFProcess):
 
             if (timed_out == True):
                 return None
-      
-        return handle
   
     def poll(self, process):
         try:
