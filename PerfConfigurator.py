@@ -411,15 +411,30 @@ class TalosOptions(optparse.OptionParser):
 
         self.set_defaults(**defaults)
 
+    def verifyCommandLine(self, args, options):
+        if len(args) > 0:
+            raise Configuration("Configurator does not take command line arguments, only options (arguments were: %s)" % (",".join(args)))
+
+
 def main(argv=None):
     parser = TalosOptions()
     options, args = parser.parse_args()
-    configurator = PerfConfigurator(options);
+
+    progname = sys.argv[0].split("/")[-1]
     try:
+        parser.verifyCommandLine(args, options)
+        configurator = PerfConfigurator(options);
         configurator.writeConfigFile()
     except Configuration, err:
-        print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
-        return 5
+        print >> sys.stderr, progname + ": " + str(err.msg)
+        return 4
+    except EnvironmentError, err:
+        print >> sys.stderr, "%s: %s" % (progname, err)
+        return 4
+    # Note there is no "default" exception handler: we *want* a big ugly
+    # traceback and not a generic error if something happens that we didn't
+    # anticipate
+
     return 0
 
 

@@ -194,31 +194,32 @@ class remoteTalosOptions(pc.TalosOptions):
         defaults["sampleConfig"] = 'remote.config'
         self.set_defaults(**defaults)
 
-    def verifyOptions(self, options):
+    def verifyCommandLine(self, args, options):
+        pc.TalosOptions.verifyCommandLine(self, args, options)
+
         #webServer can be used without remoteDevice, but is required when using remoteDevice
         if (options.remoteDevice != '' or options.deviceRoot != ''):
             if (options.webServer == 'localhost'  or options.remoteDevice == ''):
                 raise Configuration("When running Talos on a remote device, you need to provide a webServer and optionally a remotePort")
-        return options
 
 def main(argv=None):
     parser = remoteTalosOptions()
     options, args = parser.parse_args()
 
-    if len(args) > 0:
-        print "ERROR: Configurator does not take command line arguments, only options (arguments were: %s)" % (",".join(args))
-        return 2
-
     progname = sys.argv[0].split("/")[-1]
     try:
-        options = parser.verifyOptions(options)
+        parser.verifyCommandLine(args, options)
         configurator = remotePerfConfigurator(options)
         configurator.writeConfigFile()
     except Configuration, err:
-        print >> sys.stderr, progname + ": " + str(err.msg)
-        return 2
-    except:
-        print >> sys.stderr, progname + ": " + "Unknown error"
+        print >> sys.stderr, "%s: %s" % (progname, str(err.msg))
+        return 4
+    except EnvironmentError, err:
+        print >> sys.stderr, "%s: %s" % (progname, err)
+        return 4
+    # Note there is no "default" exception handler: we *want* a big ugly
+    # traceback and not a generic error if something happens that we didn't
+    # anticipate
 
     return 0
     

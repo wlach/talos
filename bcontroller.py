@@ -89,6 +89,7 @@ class BrowserWaiter(threading.Thread):
       else: #non-remote device
         self.command = self.command + eval(self.url_mod)
 
+    self.firstTime = int(time.time()*1000)
     if (self.deviceManager): #working with a remote device
       devroot = self.deviceManager.getDeviceRoot()
       if (devroot == None):
@@ -135,6 +136,9 @@ class BrowserWaiter(threading.Thread):
 
   def getTime(self):
     return self.endTime
+
+  def getFirstTime(self):
+    return self.firstTime
 
   def getReturn(self):
     return self.returncode
@@ -190,7 +194,8 @@ class BrowserController:
       results_file.write("\n__FAILbrowser non-zero return code (%d)__FAIL\n" % self.bwaiter.getReturn())
       results_file.close()
       return
-    results_file.write("__startSecondTimestamp%d__endSecondTimestamp\n" % self.bwaiter.getTime())
+    results_file.write("__startBeforeLaunchTimestamp%d__endBeforeLaunchTimestamp\n" % self.bwaiter.getFirstTime())
+    results_file.write("__startAfterTerminationTimestamp%d__endAfterTerminationTimestamp\n" % self.bwaiter.getTime())
     results_file.close()
     return
 
