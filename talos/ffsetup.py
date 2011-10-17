@@ -295,7 +295,12 @@ class FFSetup(object):
         if (browser_config['webserver'] != 'localhost'):
             b_log = browser_config['deviceroot'] + '/' + browser_config['browser_log']
 
-        b_cmd = self.ffprocess.GenerateBControllerCommandLine(command_line, browser_config, {})
+        # Always disable custom video capturing stuff for this
+        init_config = dict(browser_config)
+        init_config['video_capture'] = False
+
+        b_cmd = self.ffprocess.GenerateBControllerCommandLine(command_line, init_config, {})
+        utils.debug("Running bcontroller: %s" % b_cmd)
         process = subprocess.Popen(b_cmd, universal_newlines=True, shell=True, bufsize=0, env=os.environ)
 
         timeout = True
