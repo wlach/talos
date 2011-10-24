@@ -116,6 +116,10 @@ def process_Request(post):
     raise talosError("send failed, graph server says:\n" + post)
   return links
 
+def responsiveness_Metric(val_list):
+  s = sum([int(x)*int(x) / 1000000.0 for x in val_list])
+  return str(round(s))
+
 def send_to_csv(csv_dir, results):
   import csv
   def avg_excluding_max(val_list):
@@ -187,6 +191,8 @@ def send_to_csv(csv_dir, results):
           i += 1
         if isMemoryMetric(shortName(count_type)):
           writer.writerow(['RETURN: ' + counterName + ': ' + filesizeformat(avg_excluding_max(cd[count_type])),])
+        elif count_type == 'responsiveness':
+          writer.writerow(['RETURN: ' + counterName + ': ' + responsiveness_Metric(cd[count_type]),])
         else:
           writer.writerow(['RETURN: ' + counterName + ': ' + avg_excluding_max(cd[count_type]),])
 
@@ -207,13 +213,19 @@ def construct_results (machine, testname, browser_config, date, vals, amo):
     #browser_name,browser_version,addon_id
     amo_format= "%s,%s,%s\n"
     data_string += amo_format % (browser_config['browser_name'], browser_config['browser_version'], browser_config['addon_id'])
+  elif 'responsiveness' in testname:
+    data_string += "AVERAGE\n"
   else:
     data_string += "VALUES\n"
   data_string += info_format % (machine, testname, branch, sourcestamp, buildid, date)
-  i = 0
-  for val, page in vals:
-    data_string += "%d,%.2f,%s\n" % (i,float(val), page)
-    i += 1
+  #add the data to the file
+  if 'responsiveness' in testname:
+    data_string += "%s\n" % (responsiveness_Metric([val for (val, page) in vals]))
+  else:
+    i = 0
+    for val, page in vals:
+      data_string += "%d,%.2f,%s\n" % (i,float(val), page)
+      i += 1
   data_string += "END"
   return data_string
 

@@ -81,6 +81,7 @@ class TTest(object):
     RESULTS_TP_REGEX = re.compile('__start_tp_report(.*?)__end_tp_report.*?__startTimestamp(.*?)__endTimestamp.*?__startBeforeLaunchTimestamp(.*?)__endBeforeLaunchTimestamp.*?__startAfterTerminationTimestamp(.*?)__endAfterTerminationTimestamp',
                       re.DOTALL | re.MULTILINE)
     RESULTS_REGEX_FAIL = re.compile('__FAIL(.*?)__FAIL', re.DOTALL|re.MULTILINE)
+    RESULTS_RESPONSIVENESS_REGEX = re.compile('MOZ_EVENT_TRACE\ssample\s\d*?\s(\d*?)$', re.DOTALL|re.MULTILINE)
 
     def __init__(self, remote = False):
         cmanager, platformtype, ffprocess = self.getPlatformType(remote)
@@ -203,7 +204,7 @@ class TTest(object):
 
         """
         self.initializeLibraries(browser_config)
- 
+
         utils.debug("operating with platform_type : " + self.platform_type)
         counters = test_config[self.platform_type + 'counters']
         resolution = test_config['resolution']
@@ -250,6 +251,11 @@ class TTest(object):
             utils.debug("initialized " + browser_config['process'])
             if test_config['shutdown']:
                 shutdown = []
+            if 'responsiveness' in test_config and test_config['responsiveness']:
+               utils.setEnvironmentVars({'MOZ_INSTRUMENT_EVENT_LOOP': '1'})
+               utils.setEnvironmentVars({'MOZ_INSTRUMENT_EVENT_LOOP_THRESHOLD': '20'})
+               utils.setEnvironmentVars({'MOZ_INSTRUMENT_EVENT_LOOP_INTERVAL': '10'})
+               responsiveness = []
 
             for i in range(test_config['cycles']):
                 if os.path.isfile(browser_config['browser_log']):
@@ -370,6 +376,8 @@ class TTest(object):
  
                 if test_config['shutdown']:
                     shutdown.append(endTime - startTime)
+                if 'responsiveness' in test_config and test_config['responsiveness']:
+                    responsiveness = self.RESULTS_RESPONSIVENESS_REGEX.findall(results_raw)
 
                 all_browser_results.append(browser_results)
                 all_counter_results.append(counter_results)
@@ -385,6 +393,8 @@ class TTest(object):
             utils.restoreEnvironmentVars()
             if test_config['shutdown']:
                 all_counter_results.append({'shutdown' : shutdown})      
+            if 'responsiveness' in test_config and test_config['responsiveness']:
+                all_counter_results.append({'responsiveness' : responsiveness})      
             return (all_browser_results, all_counter_results, format)
         except:
             try:
