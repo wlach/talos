@@ -38,7 +38,7 @@
     Eideticker.pageLoaded();
     }, 1000);
 
-    function startAnimation() {
+    function startedRecording() {
       console.log(intervalId);
       dumpLog('__start_report' + Date.now() + '__end_report\n\n');
       dumpLog('intervalId: ' + intervalId);
@@ -56,7 +56,7 @@
                              colorIndex++;
                              if (colorIndex > 2) {
                                dumpLog('__startTimestamp' + Date.now() + '__endTimestamp\n');
-                               Eideticker.animationFinished();
+                               Eideticker.finished();
                                goQuitApplication();
                              } else {
                                transition();

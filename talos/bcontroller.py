@@ -116,33 +116,33 @@ class BrowserWaiter(threading.Thread):
             class BrowserState:
                 pass
             st = BrowserState()
-            st.is_page_loaded = st.is_animation_finished = False
+            st.is_ready = st.is_finished = False
 
-            def page_loaded(obj):
-                print "Page loaded!"
-                st.is_page_loaded = True
+            def is_ready(obj):
+                print "Ready!"
+                st.is_ready = True
 
-            def animation_finished(obj):
+            def is_finished(obj):
                 print "Anim finished!"
-                st.is_animation_finished = True
+                st.is_finished = True
 
-            back_channel.add_listener(page_loaded, eventType='Eideticker.PageLoaded')
-            back_channel.add_listener(animation_finished, eventType='Eideticker.AnimationFinished')
+            back_channel.add_listener(is_ready, eventType='Eideticker.Ready')
+            back_channel.add_listener(is_finished, eventType='Eideticker.Finished')
 
-            print "Waiting for page to load"
-            while not st.is_page_loaded:
+            print "Waiting for Eideticker to send ready signal"
+            while not st.is_ready:
                 back_channel.handle_read()
                 time.sleep(0.1)
 
             captureController = videocapture.CaptureController()
             captureController.launch(os.path.join(CAPTURE_DIR, datetime.datetime.now().isoformat()))
 
-            print "Starting animation"
+            print "Sending started recording signal"
             eideticker = jsbridge.JSObject(bridge, "Components.utils.import('resource://eideticker/modules/eideticker.js')")
-            eideticker.startAnimation()
+            eideticker.startedRecording()
 
             print "Waiting for animation to finish"
-            while not st.is_animation_finished:
+            while not st.is_finished:
                 back_channel.handle_read()
                 time.sleep(0.1)
 
