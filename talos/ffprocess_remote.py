@@ -79,6 +79,19 @@ class RemoteProcess(FFProcess):
         return self.testAgent.getProcessList()
 
 
+    def GetBrowserRunner(self, browser_path, extra_args, profile_dir, logfile, url):
+        from mozrunner.remoterunner import RemoteFennecRunner
+        from mozprofile import Profile
+
+        # note: we totally ignore the logfile parameter here, as a remote
+        # runner has no concept of a logfile
+        return RemoteFennecRunner(self.testAgent, Profile(profile=profile_dir, restore=False),
+                                  cmdargs=extra_args.split(" ") +  [url])
+
+    def GetBrowserLog(self, logfile):
+        remote_log_name = os.path.join(self.testAgent.getDeviceRoot(), logfile)
+        return self.testAgent.pullFile(remote_log_name)
+
     def GenerateBrowserCommandLine(self, browser_path, extra_args, profile_dir, url):
         """Generates the command line for a process to run Browser
 
@@ -192,38 +205,6 @@ class RemoteProcess(FFProcess):
                 results_file.close()
             return fileData
         return data
-
-    def launchProcess(self, cmd, outputFile = "process.txt", timeout = -1):
-        if (outputFile == "process.txt"):
-            outputFile = self.rootdir + self.dirSlash + "process.txt"
-            cmd += " > " + outputFile
-        if (self.testAgent.fireProcess(cmd) is None):
-            return None
-        handle = outputFile
-  
-        timed_out = True
-        if (timeout > 0):
-            total_time = 0
-            while total_time < timeout:
-                time.sleep(1)
-                if (self.poll(cmd) is None):
-                    timed_out = False
-                    break
-                total_time += 1
-
-            if (timed_out == True):
-                return None
-      
-        return handle
-  
-    def poll(self, process):
-        try:
-            if (self.testAgent.processExist(process) == None):
-                return None
-            return 1
-        except:
-            return None
-        return 1
   
     #currently this is only used during setup of newprofile from ffsetup.py
     def copyDirToDevice(self, localDir):

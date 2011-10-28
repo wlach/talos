@@ -246,9 +246,9 @@ class FFSetup(object):
         for addon in extensions:
             self.install_addon(profile_dir, addon)
 
-        if (self._remoteWebServer <> 'localhost'):
-            remote_dir = self.ffprocess.copyDirToDevice(profile_dir)
-            profile_dir = remote_dir
+        #if (self._remoteWebServer <> 'localhost'):
+        #    remote_dir = self.ffprocess.copyDirToDevice(profile_dir)
+        #    profile_dir = remote_dir
         return temp_dir, profile_dir
         
     def InstallInBrowser(self, browser_path, dir_path):
@@ -277,7 +277,7 @@ class FFSetup(object):
 
     def InitializeNewProfile(self, profile_dir, browser_config):
         """Runs browser with the new profile directory, to negate any performance
-            hit that could occur as a result of starting up with a new profile.  
+            hit that could occur as a result of starting up with a new profile.
             Also kills the "extra" browser that gets spawned the first time browser
             is run with a new profile.
 
@@ -286,40 +286,18 @@ class FFSetup(object):
             profile_dir: The full path to the profile directory to load
         """
         PROFILE_REGEX = re.compile('__metrics(.*)__metrics', re.DOTALL|re.MULTILINE)
-        command_line = self.ffprocess.GenerateBrowserCommandLine(browser_config["browser_path"], 
-                                                                 browser_config["extra_args"], 
-                                                                 profile_dir, 
-                                                                 browser_config["init_url"])
-
         log = browser_config['browser_log']
-        if (browser_config['webserver'] != 'localhost'):
-            b_log = browser_config['deviceroot'] + '/' + browser_config['browser_log']
 
-        b_cmd = self.ffprocess.GenerateBControllerCommandLine(command_line, browser_config, {})
-        process = subprocess.Popen(b_cmd, universal_newlines=True, shell=True, bufsize=0, env=os.environ)
+        runner = self.ffprocess.GetBrowserRunner(browser_config["browser_path"],
+                                                 browser_config["extra_args"],
+                                                 profile_dir,
+                                                 log,
+                                                 browser_config["init_url"])
 
-        timeout = True
-        total_time = 0
-        while total_time < 1200: #20 minutes
-            time.sleep(1)
-            if process.poll() != None: #browser_controller completed, file now full
-                timeout = False
-                break
-            total_time += 1
-
-        res = 0
-        if (timeout == False):
-            if not os.path.isfile(log):
-                raise talosError("initalization has no output from browser")
-            results_file = open(log, "r")
-            results_raw = results_file.read()
-            results_file.close()
-            match = PROFILE_REGEX.search(results_raw)
-            if match:
-                res = 1
-                print match.group(1)
-        else:
-            raise talosError("initialization timed out")
-
-        return res
+        runner.start()
+        max_wait_time = 1200 # 20 minutes
+        runner.wait(timeout = max_wait_time) # throws exception on timeout
+        results_raw = self.ffprocess.GetBrowserLog(log)
+        if not PROFILE_REGEX.search(results_raw):
+            raise talosError("Expected output not found when initializing profile (got: %s)" % results_raw)
 

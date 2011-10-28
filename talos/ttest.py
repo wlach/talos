@@ -74,12 +74,14 @@ class TTest(object):
     platform_type = ''
 
     # Regular expression for getting results from most tests
-    RESULTS_REGEX = re.compile('__start_report(.*?)__end_report.*?__startTimestamp(.*?)__endTimestamp.*?__startBeforeLaunchTimestamp(.*?)__endBeforeLaunchTimestamp.*?__startAfterTerminationTimestamp(.*?)__endAfterTerminationTimestamp',
-                      re.DOTALL | re.MULTILINE)
+    RESULTS_REGEX = re.compile('__start_report(.*?)__end_report.*?'
+                               '__startTimestamp(.*?)__endTimestamp',
+                               re.DOTALL | re.MULTILINE)
     # Regular expression to get stats for page load test (Tp) - 
     #should go away once data passing is standardized
-    RESULTS_TP_REGEX = re.compile('__start_tp_report(.*?)__end_tp_report.*?__startTimestamp(.*?)__endTimestamp.*?__startBeforeLaunchTimestamp(.*?)__endBeforeLaunchTimestamp.*?__startAfterTerminationTimestamp(.*?)__endAfterTerminationTimestamp',
-                      re.DOTALL | re.MULTILINE)
+    RESULTS_TP_REGEX = re.compile('__start_tp_report(.*?)__end_tp_report.*?'
+                                  '__startTimestamp(.*?)__endTimestamp.*?',
+                                  re.DOTALL | re.MULTILINE)
     RESULTS_REGEX_FAIL = re.compile('__FAIL(.*?)__FAIL', re.DOTALL|re.MULTILINE)
     RESULTS_RESPONSIVENESS_REGEX = re.compile('MOZ_EVENT_TRACE\ssample\s\d*?\s(\d*?)$', re.DOTALL|re.MULTILINE)
 
@@ -138,8 +140,7 @@ class TTest(object):
         return profile_dir, temp_dir
 
     def initializeProfile(self, profile_dir, browser_config):
-        if not self._ffsetup.InitializeNewProfile(profile_dir, browser_config):
-            raise talosError("failed to initialize browser")
+        self._ffsetup.InitializeNewProfile(profile_dir, browser_config)
         time.sleep(browser_config['browser_wait'])
         if self._ffprocess.checkAllProcesses(browser_config['process'], browser_config['child_process']):
             raise talosError("browser failed to close after being initialized") 
@@ -292,10 +293,12 @@ class TTest(object):
                 b_log = browser_config['browser_log']
                 if (self.remote == True):
                     b_log = browser_config['deviceroot'] + '/' + browser_config['browser_log']
-
-                b_cmd = self._ffprocess.GenerateBControllerCommandLine(command_line, browser_config, test_config)
-                process = subprocess.Popen(b_cmd, universal_newlines=True, shell=True, bufsize=0, env=os.environ)
-  
+                runner = self._ffprocess.GetBrowserRunner(browser_config['browser_path'],
+                                                          browser_config['extra_args'],
+                                                          profile_dir,
+                                                          b_log,
+                                                          url)
+                runner.start()
                 #give browser a chance to open
                 # this could mean that we are losing the first couple of data points
                 #   as the tests starts, but if we don't provide
@@ -319,44 +322,36 @@ class TTest(object):
                     if (len(fileData) > 0):
                         utils.noisy(fileData.replace(dumpResult, ''))
                         dumpResult = fileData
-        
 
                     # Get the output from all the possible counters
                     for count_type in counters:
                         val = cm.getCounterValue(count_type)
                         if (val):
                             counter_results[count_type].append(val)
-                    if process.poll() != None: #browser_controller completed, file now full
+                    if not runner.is_running(): # we're done!
+                        endTime = time.time()*1000
                         timed_out = False
                         break
-                        
+
                 if total_time >= timeout:
                     raise talosError("timeout exceeded")
                 else:
                     #stop the counter manager since this test is complete
                     if counters:
                         cm.stopMonitor()
-
-                    if not os.path.isfile(browser_config['browser_log']):
-                        raise talosError("no output from browser")
-                    results_file = open(browser_config['browser_log'], "r")
-                    results_raw = results_file.read()
-                    results_file.close()
-  
+                    results_raw = self._ffprocess.GetBrowserLog(browser_config['browser_log'])
                     match = self.RESULTS_REGEX.search(results_raw)
                     tpmatch = self.RESULTS_TP_REGEX.search(results_raw)
                     failmatch = self.RESULTS_REGEX_FAIL.search(results_raw)
                     if match:
                         browser_results += match.group(1)
                         startTime = int(match.group(2))
-                        endTime = int(match.group(4))
                         format = "tsformat"
                     #TODO: this a stop gap until all of the tests start outputting the same format
                     elif tpmatch:
                         match = tpmatch
                         browser_results += match.group(1)
                         startTime = int(match.group(2))
-                        endTime = int(match.group(4))
                         format = "tpformat"
                     elif failmatch:
                         match = failmatch
@@ -368,11 +363,6 @@ class TTest(object):
                 time.sleep(browser_config['browser_wait']) 
                 #clean up any stray browser processes
                 self.cleanupAndCheckForCrashes(browser_config, profile_dir)
-                #clean up the bcontroller process
-                timer = 0
-                while ((process.poll() is None) and timer < browser_config['browser_wait']):
-                    time.sleep(1)
-                    timer+=1
  
                 if test_config['shutdown']:
                     shutdown.append(endTime - startTime)
