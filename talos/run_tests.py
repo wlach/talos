@@ -42,12 +42,11 @@ __author__ = 'annie.sullivan@gmail.com (Annie Sullivan)'
 import time
 import yaml
 import sys
-import urllib 
+import urllib
+import optparse 
 import os
 import string
 import socket
-#socket.setdefaulttimeout(480)
-import getopt
 import re
 
 import utils
@@ -56,20 +55,13 @@ import post_file
 from ttest import TTest
 
 def shortName(name):
-  if name == "Working Set":
-    return "memset"
-  elif name == "% Processor Time":
-    return "%cpu"
-  elif name == "Private Bytes":
-    return "pbytes"
-  elif name == "RSS":
-    return "rss"
-  elif name == "XRes":
-    return "xres"
-  elif name == "Modified Page List Bytes":
-    return "modlistbytes"
-  else: 
-    return name
+  names = {"Working Set": "memset",
+           "% Processor Time": "%cpu",
+           "Private Bytes": "pbytes",
+           "RSS": "rss",
+           "XRes": "xres",
+           "Modified Page List Bytes": "modlistbytes"}
+  return names.get(name, name)
 
 def isMemoryMetric(resultName):
   memory_metric = ['memset', 'rss', 'pbytes', 'xres', 'modlistbytes'] #measured in bytes
@@ -538,23 +530,35 @@ def test_file(filename, to_screen, amo):
         send_to_csv(None, {testname : results[testname]})
       print '\nFAIL: ' + e.msg.replace('\n', '\nRETURN:')
 
-  
-if __name__=='__main__':
-  screen = False
-  amo = False
-  optlist, args = getopt.getopt(sys.argv[1:], 'dns', ['debug', 'noisy', 'screen', 'amo'])
-  for o, a in optlist:
-    if o in ('-d', "--debug"):
-      print 'setting debug'
-      utils.setdebug(1)
-    if o in ('-n', "--noisy"):
-      utils.setnoisy(1)
-    if o in ('-s', "--screen"):
-      screen = True
-    if o in ('-a', "--amo"):
-      amo = True
+def main(args=sys.argv[1:]):
+
+  # parse command line options
+  parser = optparse.OptionParser()
+  parser.add_option('-d', '--debug', dest='debug',
+                    action='store_true', default=False,
+                    help="enable debug")
+  parser.add_option('-n', '--noisy', dest='noisy',
+                    action='store_true', default=False,
+                    help="enable noisy output")
+  parser.add_option('-s', '--screen', dest='screen',
+                    action='store_true', default=False,
+                    help="set screen")
+  parser.add_option('--amo', dest='amo',
+                    action='store_true', default=False,
+                    help="set AMO")
+  options, args = parser.parse_args(args)
+
+  # set variables
+  if options.debug:
+    print 'setting debug'
+    utils.setdebug(1)
+  if options.noisy:
+    utils.setnoisy(1)
+
   # Read in each config file and run the tests on it.
   for arg in args:
     utils.debug("running test file " + arg)
-    test_file(arg, screen, amo)
+    test_file(arg, options.screen, options.amo)
 
+if __name__=='__main__':
+  main()
