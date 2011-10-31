@@ -9,7 +9,7 @@ except IOError:
 
 version = "0.0"
 
-dependencies = []
+dependencies = ['pyyaml']
 
 setup(name='talos',
       version=version,
