@@ -2,3 +2,6 @@
 ~$
 \.DS_Store$
 .pyc$
+.xpi$
+.yml$
+browser_output.txt$
