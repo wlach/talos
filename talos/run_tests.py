@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # ***** BEGIN LICENSE BLOCK *****
 # Version: MPL 1.1/GPL 2.0/LGPL 2.1
 #
@@ -41,12 +42,11 @@ __author__ = 'annie.sullivan@gmail.com (Annie Sullivan)'
 import time
 import yaml
 import sys
-import urllib 
+import urllib
+import optparse 
 import os
 import string
 import socket
-#socket.setdefaulttimeout(480)
-import getopt
 import re
 
 import utils
@@ -55,20 +55,13 @@ import post_file
 from ttest import TTest
 
 def shortName(name):
-  if name == "Working Set":
-    return "memset"
-  elif name == "% Processor Time":
-    return "%cpu"
-  elif name == "Private Bytes":
-    return "pbytes"
-  elif name == "RSS":
-    return "rss"
-  elif name == "XRes":
-    return "xres"
-  elif name == "Modified Page List Bytes":
-    return "modlistbytes"
-  else: 
-    return name
+  names = {"Working Set": "memset",
+           "% Processor Time": "%cpu",
+           "Private Bytes": "pbytes",
+           "RSS": "rss",
+           "XRes": "xres",
+           "Modified Page List Bytes": "modlistbytes"}
+  return names.get(name, name)
 
 def isMemoryMetric(resultName):
   memory_metric = ['memset', 'rss', 'pbytes', 'xres', 'modlistbytes'] #measured in bytes
@@ -115,6 +108,10 @@ def process_Request(post):
   if not links:
     raise talosError("send failed, graph server says:\n" + post)
   return links
+
+def responsiveness_Metric(val_list):
+  s = sum([int(x)*int(x) / 1000000.0 for x in val_list])
+  return str(round(s))
 
 def send_to_csv(csv_dir, results):
   import csv
@@ -187,6 +184,8 @@ def send_to_csv(csv_dir, results):
           i += 1
         if isMemoryMetric(shortName(count_type)):
           writer.writerow(['RETURN: ' + counterName + ': ' + filesizeformat(avg_excluding_max(cd[count_type])),])
+        elif count_type == 'responsiveness':
+          writer.writerow(['RETURN: ' + counterName + ': ' + responsiveness_Metric(cd[count_type]),])
         else:
           writer.writerow(['RETURN: ' + counterName + ': ' + avg_excluding_max(cd[count_type]),])
 
@@ -207,13 +206,19 @@ def construct_results (machine, testname, browser_config, date, vals, amo):
     #browser_name,browser_version,addon_id
     amo_format= "%s,%s,%s\n"
     data_string += amo_format % (browser_config['browser_name'], browser_config['browser_version'], browser_config['addon_id'])
+  elif 'responsiveness' in testname:
+    data_string += "AVERAGE\n"
   else:
     data_string += "VALUES\n"
   data_string += info_format % (machine, testname, branch, sourcestamp, buildid, date)
-  i = 0
-  for val, page in vals:
-    data_string += "%d,%.2f,%s\n" % (i,float(val), page)
-    i += 1
+  #add the data to the file
+  if 'responsiveness' in testname:
+    data_string += "%s\n" % (responsiveness_Metric([val for (val, page) in vals]))
+  else:
+    i = 0
+    for val, page in vals:
+      data_string += "%d,%.2f,%s\n" % (i,float(val), page)
+      i += 1
   data_string += "END"
   return data_string
 
@@ -525,23 +530,35 @@ def test_file(filename, to_screen, amo):
         send_to_csv(None, {testname : results[testname]})
       print '\nFAIL: ' + e.msg.replace('\n', '\nRETURN:')
 
-  
-if __name__=='__main__':
-  screen = False
-  amo = False
-  optlist, args = getopt.getopt(sys.argv[1:], 'dns', ['debug', 'noisy', 'screen', 'amo'])
-  for o, a in optlist:
-    if o in ('-d', "--debug"):
-      print 'setting debug'
-      utils.setdebug(1)
-    if o in ('-n', "--noisy"):
-      utils.setnoisy(1)
-    if o in ('-s', "--screen"):
-      screen = True
-    if o in ('-a', "--amo"):
-      amo = True
+def main(args=sys.argv[1:]):
+
+  # parse command line options
+  parser = optparse.OptionParser()
+  parser.add_option('-d', '--debug', dest='debug',
+                    action='store_true', default=False,
+                    help="enable debug")
+  parser.add_option('-n', '--noisy', dest='noisy',
+                    action='store_true', default=False,
+                    help="enable noisy output")
+  parser.add_option('-s', '--screen', dest='screen',
+                    action='store_true', default=False,
+                    help="set screen")
+  parser.add_option('--amo', dest='amo',
+                    action='store_true', default=False,
+                    help="set AMO")
+  options, args = parser.parse_args(args)
+
+  # set variables
+  if options.debug:
+    print 'setting debug'
+    utils.setdebug(1)
+  if options.noisy:
+    utils.setnoisy(1)
+
   # Read in each config file and run the tests on it.
   for arg in args:
     utils.debug("running test file " + arg)
-    test_file(arg, screen, amo)
+    test_file(arg, options.screen, options.amo)
 
+if __name__=='__main__':
+  main()
