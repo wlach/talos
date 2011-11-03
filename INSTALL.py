@@ -2,6 +2,12 @@
 
 """
 installation script for talos
+
+You can run this script like:
+
+python <(curl http://hg.mozilla.org/build/talos/raw-file/tip/INSTALL.py)
+
+to get a talos virtualenv with talos in the `src` directory
 """
 
 import os
@@ -20,7 +26,7 @@ except:
 
 REPO='http://hg.mozilla.org/build/talos'
 ZIPFILE='http://hg.mozilla.org/build/talos/archive/tip.zip'
-DEST='talos'
+DEST='talos-env'
 VIRTUALENV='https://raw.github.com/pypa/virtualenv/develop/virtualenv.py'
 
 def which(binary, path=os.environ['PATH']):
@@ -40,9 +46,9 @@ def main(args=sys.argv[1:]):
     # create a virtualenv
     virtualenv = which('virtualenv') or which('virtualenv.py')
     if virtualenv:
-        call([virtualenv, DEST])
+        call([virtualenv, '--system-site-packages', DEST])
     else:
-        process = subprocess.Popen([sys.executable, '-', DEST], stdin=subprocess.PIPE)
+        process = subprocess.Popen([sys.executable, '-', '--system-site-packages', DEST], stdin=subprocess.PIPE)
         stdout, stderr = process.communicate(input=urllib2.urlopen(VIRTUALENV).read())
 
     # create a src directory
