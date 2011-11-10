@@ -13,7 +13,7 @@ class remotePerfConfigurator(pc.PerfConfigurator):
 
         #this depends on buildID which requires querying the device
         pc.PerfConfigurator.__init__(self, options)
-        pc.PerfConfigurator.attributes += ['remoteDevice', 'remotePort', 'deviceRoot', 'videoCapture']
+        pc.PerfConfigurator.attributes += ['remoteDevice', 'remotePort', 'webServer', 'deviceRoot', 'videoCapture']
 
     def _setupRemote(self):
         try:

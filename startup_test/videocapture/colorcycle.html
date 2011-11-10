@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en" type="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <title>Test</title>
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+</head>
+
+<body>
+
+  <div id="container">
+    <header>
+
+    </header>
+    <div id="main" role="main">
+    </div>
+    <footer>
+
+    </footer>
+  </div> <!--! end of #container -->
+
+
+  <!-- JavaScript at the bottom for fast page loading -->
+
+  <script type="text/javascript" src="jquery-1.6.4.min.js"></script>
+  <script type="text/javascript" src="jquery-ui.min.js"></script>
+  <script type="text/javascript" src="../../scripts/MozillaFileLogger.js"></script>
+  <script type="text/javascript" src="../../page_load_test/quit.js"></script>
+  <script type="text/javascript">
+    // Set a function
+    var intervalId = setInterval(function() {
+    Eideticker.pageLoaded();
+    }, 1000);
+
+    function startedRecording() {
+      console.log(intervalId);
+      dumpLog('__start_report' + Date.now() + '__end_report\n\n');
+      dumpLog('intervalId: ' + intervalId);
+      clearInterval(intervalId);
+      var colors = [ "#FF0000", "#00FF00", "#0000FF" ];
+      var colorIndex = 0;
+      console.log('About to get width');
+      $('#main').width($(window).width());
+      $('#main').height($(window).height());
+      console.log('Got dimensions');
+      function transition() {
+      $('#main').animate( { backgroundColor: colors[colorIndex] },
+                          3000,
+                          function() {
+                             colorIndex++;
+                             if (colorIndex > 2) {
+                               dumpLog('__startTimestamp' + Date.now() + '__endTimestamp\n');
+                               Eideticker.finished();
+                               goQuitApplication();
+                             } else {
+                               transition();
+                             }
+                          } );
+      };
+      transition();
+    }
+
+    $(document).ready(function () {
+    });
+  </script>
+</body>
+</html>
