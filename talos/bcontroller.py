@@ -134,8 +134,10 @@ class BrowserWaiter(threading.Thread):
                 back_channel.handle_read()
                 time.sleep(0.1)
 
+            capture_file = os.path.join(CAPTURE_DIR, "capture-%s.zip" %
+                                        datetime.datetime.now().isoformat())
             captureController = videocapture.CaptureController()
-            captureController.launch(os.path.join(CAPTURE_DIR, datetime.datetime.now().isoformat()))
+            captureController.launch(capture_file)
 
             print "Sending started recording signal"
             eideticker = jsbridge.JSObject(bridge, "Components.utils.import('resource://eideticker/modules/eideticker.js')")
