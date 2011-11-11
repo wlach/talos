@@ -134,9 +134,9 @@ class BrowserWaiter(threading.Thread):
                 back_channel.handle_read()
                 time.sleep(0.1)
 
+            captureController = videocapture.CaptureController("LG-P999")
             capture_file = os.path.join(CAPTURE_DIR, "capture-%s.zip" %
                                         datetime.datetime.now().isoformat())
-            captureController = videocapture.CaptureController()
             captureController.launch(capture_file)
 
             print "Sending started recording signal"
