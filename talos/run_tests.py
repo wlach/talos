@@ -453,7 +453,8 @@ def test_file(filename, to_screen, amo):
                     'bcontroller_config' : yaml_config.get('bcontroller_config', 'bcontroller.yml'),
                     'xperf_path'         : yaml_config.get('xperf_path', None),
                     'develop'            : yaml_config.get('develop', False),
-                    'video_capture'      : yaml_config.get('video_capture', False) }
+                    'video_capture'      : yaml_config.get('video_capture', False),
+                    'capture_dir'        : yaml_config.get('capture_dir', None) }
 
   #normalize paths to work accross platforms
   dm = None

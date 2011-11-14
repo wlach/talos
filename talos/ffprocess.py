@@ -79,7 +79,7 @@ class FFProcess(object):
                 raise talosError("failed to cleanup")
 
     def GenerateBControllerCommandLine(self, command_line, browser_config, test_config):
-        bcontroller_vars = ['command', 'child_process', 'process', 'browser_wait', 'test_timeout', 'browser_log', 'video_capture']
+        bcontroller_vars = ['command', 'child_process', 'process', 'browser_wait', 'test_timeout', 'browser_log', 'video_capture', 'capture_dir']
 
         if 'xperf_path' in browser_config:
             bcontroller_vars.append('xperf_path')

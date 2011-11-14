@@ -46,6 +46,8 @@ class remotePerfConfigurator(pc.PerfConfigurator):
             newline = 'deviceport: %s\n' % self.remotePort
         if 'video_capture:' in line:
             newline = 'video_capture: %s\n' % self.videoCapture
+        if 'capture_dir:' in line:
+            newline = 'capture_dir: %s\n' % self.captureDir
         if 'remote:' in line:
             newline = 'remote: %s\n' % self._remote
         if 'talos.logfile:' in line:
@@ -172,6 +174,12 @@ class remoteTalosOptions(pc.TalosOptions):
                         dest = "videoCapture",
                         help="capture results of talos run to video")
         defaults["videoCapture"] = False
+
+        self.add_option("--captureDir", action="store",
+                        dest="captureDir",
+                        help="destination directory for video captures (use "
+                        "with --videoCapture)")
+        defaults["captureDir"] = os.path.abspath(os.path.dirname(__file__))
 
         defaults["sampleConfig"] = 'remote.config'
         self.set_defaults(**defaults)

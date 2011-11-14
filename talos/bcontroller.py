@@ -37,7 +37,6 @@
 # ***** END LICENSE BLOCK *****
 
 __author__ = 'anodelman@mozilla.com (Alice Nodelman)'
-CAPTURE_DIR = 'captures'
 
 import os
 import time
@@ -64,6 +63,7 @@ defaults = {'endTime': -1,
             'port': 20701,
             'env': '',
             'video_capture': False,
+            'capture_dir': None,
             'xperf_path': None,
             'xperf_providers': [], 'xperf_stackwalk': [],
             'configFile': 'bcontroller.yml'}
@@ -135,7 +135,7 @@ class BrowserWaiter(threading.Thread):
                 time.sleep(0.1)
 
             captureController = videocapture.CaptureController("LG-P999")
-            capture_file = os.path.join(CAPTURE_DIR, "capture-%s.zip" %
+            capture_file = os.path.join(self.capture_dir, "capture-%s.zip" %
                                         datetime.datetime.now().isoformat())
             captureController.launch(capture_file)
 
